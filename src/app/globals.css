@@ -1,0 +1,207 @@
+@import "tailwindcss";
+
+/* ============================================================
+   Money Planner 设计系统（移动优先）
+   原则：
+   1) 所有可点元素 ≥ 44px，触控目标不靠猜
+   2) 输入框在手机上 16px，避免 iOS 聚焦时自动放大页面
+   3) 文本对比度 ≥ 4.5:1（WCAG AA）
+   4) 底部留出安全区，不被 Home 指示条遮挡
+   ============================================================ */
+@theme {
+  --color-paper: #f6f5f2;
+  --color-surface: #ffffff;
+  --color-ink: #1c1917;
+  --color-ink-soft: #57534e;
+  /* 原来的 #8a8177 在纸色底上只有 3.5:1，不达标；这个值约 5.1:1 */
+  --color-ink-muted: #6f665e;
+  --color-line: #e8e5df;
+  --color-line-strong: #d6d2c9;
+  --color-brand: #0f766e;
+  --color-brand-soft: #ccfbf1;
+  --color-good: #15803d;
+  --color-watch: #b45309;
+  --color-risk: #b91c1c;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, "SFMono-Regular", monospace;
+}
+
+@layer base {
+  html {
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
+  }
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    /* 避免 iOS 回弹把底部导航一起拽走 */
+    overscroll-behavior-y: none;
+  }
+  /* 消除移动端 300ms 点击延迟与双击缩放 */
+  a,
+  button,
+  [role="button"],
+  input,
+  select,
+  textarea,
+  label {
+    touch-action: manipulation;
+  }
+  /* 触控设备上没有 hover，统一给一点按下反馈 */
+  button:active,
+  a:active,
+  [role="button"]:active {
+    opacity: 0.72;
+  }
+}
+
+@layer components {
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+  .card {
+    @apply rounded-2xl border border-line bg-surface;
+    box-shadow: 0 1px 2px rgb(28 25 23 / 0.04), 0 8px 24px -18px rgb(28 25 23 / 0.25);
+  }
+  /* 可点击的卡片：轻微缩放，手指能感觉到 */
+  .card-interactive {
+    @apply transition-transform duration-100 active:scale-[0.985];
+  }
+  .card-flat {
+    @apply rounded-2xl border border-line bg-paper/60;
+  }
+  .section-title {
+    @apply text-base font-semibold tracking-tight text-ink;
+  }
+  .btn {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm
+           font-medium transition-all active:scale-[0.97]
+           disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
+  }
+  .btn-primary {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-ink px-4 py-2.5
+           text-sm font-medium text-white transition-all hover:bg-ink-soft active:scale-[0.97]
+           disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
+  }
+  .btn-ghost {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-line
+           bg-surface px-4 py-2.5 text-sm font-medium text-ink transition-all hover:bg-paper
+           active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-50
+           disabled:active:scale-100;
+  }
+  .btn-brand {
+    @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-brand px-4 py-2.5
+           text-sm font-medium text-white transition-all hover:brightness-110 active:scale-[0.97]
+           disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100;
+  }
+  .input {
+    @apply w-full min-h-11 rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink
+           outline-none transition placeholder:text-ink-muted
+           focus:border-brand focus:ring-4 focus:ring-brand/10
+           max-sm:text-base;
+  }
+  .label {
+    @apply mb-1.5 block text-xs font-medium tracking-wide text-ink-soft;
+  }
+  /* 触控目标 ≥44px：分类选择是最高频操作，不能点不准 */
+  .chip {
+    @apply inline-flex min-h-11 items-center gap-1.5 rounded-full border border-line bg-surface
+           px-3.5 py-1.5 text-xs font-medium text-ink-soft transition-all
+           active:scale-95;
+  }
+  .chip-active {
+    @apply border-brand bg-brand-soft text-brand;
+  }
+  /* 图标按钮统一 44×44 命中区 */
+  .icon-btn {
+    @apply inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-ink-muted
+           transition-colors hover:bg-paper active:scale-95;
+  }
+}
+
+/* ---------- 安全区 ---------- */
+/* 语音按钮：手机上悬浮在底部标签栏之上并与其重叠，桌面端落回右下角 */
+.fab-bottom-mobile {
+  bottom: calc(2.25rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 640px) {
+  .fab-bottom-mobile {
+    bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+/* 页面底部留白：避开标签栏 + 悬浮按钮 */
+.page-bottom-pad {
+  padding-bottom: calc(7.5rem + env(safe-area-inset-bottom, 0px));
+}
+@media (min-width: 640px) {
+  .page-bottom-pad {
+    padding-bottom: 2.5rem;
+  }
+}
+/* 底部标签栏本体：把安全区算进自己的内边距 */
+.tabbar-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.pb-safe {
+  padding-bottom: max(1.25rem, env(safe-area-inset-bottom, 0px));
+}
+/* 横向滚动的分类选择器，不显示滚动条 */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-rise {
+  animation: rise 0.28s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes pulse-ring {
+  0% {
+    box-shadow: 0 0 0 0 rgb(15 118 110 / 0.35);
+  }
+  70% {
+    box-shadow: 0 0 0 18px rgb(15 118 110 / 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgb(15 118 110 / 0);
+  }
+}
+.animate-pulse-ring {
+  animation: pulse-ring 1.6s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes bar-bounce {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.bar-bounce {
+  animation: bar-bounce 0.9s ease-in-out infinite;
+}
+
+/* 尊重系统的「减少动态效果」 */
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise,
+  .animate-pulse-ring,
+  .bar-bounce {
+    animation: none;
+  }
+}

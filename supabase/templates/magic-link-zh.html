@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8" />
+    <!-- 阻止深色模式自动反色，保住纸色背景 -->
+    <meta name="color-scheme" content="light" />
+    <meta name="supported-color-schemes" content="light" />
+</head>
+<body style="margin:0;padding:0;background-color:#f4f1ec;">
+    <!-- 收件箱预览文案（preheader） -->
+    <div style="display:none;max-height:0;overflow:hidden;opacity:0;">
+        5 秒完成登录：在登录页输入这封邮件里的验证码即可。
+    </div>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f1ec;padding:32px 12px;">
+        <tr>
+            <td align="center">
+                <table role="presentation" width="480" cellpadding="0" cellspacing="0" style="max-width:480px;width:100%;background-color:#ffffff;border-radius:16px;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif;">
+                    <!-- 顶部品牌条：无渐变支持时显示纯色 -->
+                    <tr>
+                        <td style="height:4px;background-color:#0f766e;background-image:linear-gradient(90deg,#0f766e,#14b8a6);font-size:0;line-height:0;">&nbsp;</td>
+                    </tr>
+                    <!-- 品牌 -->
+                    <tr>
+                        <td style="padding:26px 32px 0 32px;">
+                            <span style="font-size:13px;font-weight:700;letter-spacing:3px;color:#0f766e;">MONEY&nbsp;PLANNER&nbsp;✈️</span>
+                        </td>
+                    </tr>
+                    <!-- 标题 -->
+                    <tr>
+                        <td style="padding:12px 32px 0 32px;">
+                            <h1 style="margin:0;font-size:22px;line-height:1.4;color:#1c1917;">你的登录验证码</h1>
+                            <p style="margin:8px 0 0 0;font-size:14px;line-height:1.7;color:#6f665e;">
+                                回到登录页输入下面的验证码就能继续记账——
+                                <span style="color:#8a8177;">旅行还没结束，预算还没超。</span>
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- 验证码「登机牌」 -->
+                    <tr>
+                        <td style="padding:28px 32px;">
+                            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f7fcfb;border:1px dashed #7fc8bd;border-radius:12px;">
+                                <tr>
+                                    <td align="center" style="padding:24px 16px 8px 16px;">
+                                        <span style="font-size:10px;font-weight:700;letter-spacing:4px;color:#7fc8bd;">&#9679;&nbsp;&#9679;&nbsp;&#9679;&nbsp;&nbsp;VERIFICATION&nbsp;CODE&nbsp;&nbsp;&#9679;&nbsp;&#9679;&nbsp;&#9679;</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center" style="padding:10px 16px 26px 16px;">
+                                        <!-- margin-right 负值抵消末位字距，保证视觉居中 -->
+                                        <span style="font-size:44px;font-weight:800;letter-spacing:12px;margin-right:-12px;color:#0f766e;font-family:'SF Mono',ui-monospace,Consolas,'Courier New',monospace;">{{ .Token }}</span>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td align="center" style="padding:0 16px 22px 16px;">
+                                        <span style="font-size:12px;color:#6f665e;">1 小时内有效 · 请勿泄露给他人</span>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <!-- 提示 -->
+                    <tr>
+                        <td style="padding:0 32px 8px 32px;">
+                            <p style="margin:0;font-size:12px;line-height:1.8;color:#8a8177;">
+                                只需在登录页输入这串数字，不需要点任何链接。
+                                收不到邮件？先看看垃圾箱，登录页上 60 秒后可以重新发送。
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- 分隔线 -->
+                    <tr>
+                        <td style="padding:20px 32px 0 32px;">
+                            <hr style="border:none;border-top:1px dashed #ece8e1;margin:0;" />
+                        </td>
+                    </tr>
+                    <!-- 页脚 -->
+                    <tr>
+                        <td style="padding:12px 32px 28px 32px;">
+                            <p style="margin:0;font-size:12px;line-height:1.7;color:#8a8177;">
+                                不是你在登录？放心忽略这封邮件，你的账本不会有任何变动。
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+                <p style="margin:16px 0 0 0;font-size:11px;color:#a39a90;">
+                    Money Planner · 会听你说话的旅行记账 💸
+                </p>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>
