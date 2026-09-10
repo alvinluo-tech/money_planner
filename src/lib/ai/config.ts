@@ -21,7 +21,11 @@ export async function aiConfig(): Promise<AiConfig | null> {
     const cookieStore = await cookies();
     const preferredModel = cookieStore.get("ai-model-preference")?.value;
     if (preferredModel) {
-      model = preferredModel;
+      try {
+        model = decodeURIComponent(preferredModel);
+      } catch {
+        model = preferredModel;
+      }
     }
   } catch {
     // 允许在不支持 headers 的上下文中调用（例如静态构建期间）

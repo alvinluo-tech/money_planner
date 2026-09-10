@@ -8,14 +8,6 @@ export function ModelSelector() {
   const [loading, setLoading] = useState(false);
   const [currentModel, setCurrentModel] = useState<string>("");
 
-  useEffect(() => {
-    // Read the current model from cookie or fallback
-    const match = document.cookie.match(/(?:^|; )ai-model-preference=([^;]*)/);
-    if (match) {
-      setCurrentModel(match[1]);
-    }
-  }, []);
-
   const fetchModels = async () => {
     if (models.length > 0) return;
     setLoading(true);
@@ -32,10 +24,23 @@ export function ModelSelector() {
     }
   };
 
+  useEffect(() => {
+    // Read the current model from cookie
+    const match = document.cookie.match(/(?:^|; )ai-model-preference=([^;]*)/);
+    if (match) {
+      setCurrentModel(decodeURIComponent(match[1]));
+    }
+    fetchModels();
+  }, []);
+
   const handleSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const val = e.target.value;
     setCurrentModel(val);
-    document.cookie = `ai-model-preference=${val}; path=/; max-age=31536000`; // 1 year
+    if (!val) {
+      document.cookie = "ai-model-preference=; path=/; max-age=0; SameSite=Lax";
+    } else {
+      document.cookie = `ai-model-preference=${encodeURIComponent(val)}; path=/; max-age=31536000; SameSite=Lax`; // 1 year
+    }
     // Reload page to apply changes across the app immediately
     window.location.reload();
   };
@@ -47,17 +52,16 @@ export function ModelSelector() {
       <select
         value={currentModel}
         onClick={fetchModels}
+        onFocus={fetchModels}
         onChange={handleSelect}
         className="bg-transparent border-b border-gray-300 dark:border-gray-700 outline-none text-gray-700 dark:text-gray-300 cursor-pointer max-w-[120px] sm:max-w-none truncate"
         title="选择 AI 模型"
       >
+        <option value="">默认配置</option>
         {currentModel && !models.includes(currentModel) && (
           <option value={currentModel}>{currentModel}</option>
         )}
-        {!currentModel && (
-          <option value="">默认配置</option>
-        )}
-        {loading && <option disabled>加载中...</option>}
+        {loading && models.length === 0 && <option disabled>加载中...</option>}
         {models.map(m => (
           <option key={m} value={m}>{m}</option>
         ))}
