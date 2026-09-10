@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     const parsed = assistantSchema.safeParse(body);
     if (!parsed.success) return jsonError(zodMessage(parsed.error), 422);
 
-    if (!aiEnabled()) {
+    if (!(await aiEnabled())) {
       return jsonError("还没配置大模型（AI_API_KEY），配好之后就能对话了。", 501);
     }
 

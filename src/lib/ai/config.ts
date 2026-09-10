@@ -10,13 +10,27 @@ export interface AiConfig {
   timeoutMs: number;
 }
 
-export function aiConfig(): AiConfig | null {
+import { cookies } from "next/headers";
+
+export async function aiConfig(): Promise<AiConfig | null> {
   const apiKey = process.env.AI_API_KEY?.trim();
   if (!apiKey) return null;
+  
+  let model = process.env.AI_MODEL || "gpt-4o-mini";
+  try {
+    const cookieStore = await cookies();
+    const preferredModel = cookieStore.get("ai-model-preference")?.value;
+    if (preferredModel) {
+      model = preferredModel;
+    }
+  } catch {
+    // 允许在不支持 headers 的上下文中调用（例如静态构建期间）
+  }
+
   return {
     apiKey,
     baseUrl: (process.env.AI_BASE_URL || "https://api.openai.com/v1").replace(/\/+$/, ""),
-    model: process.env.AI_MODEL || "gpt-4o-mini",
+    model,
     jsonMode: process.env.AI_JSON_MODE !== "false",
     timeoutMs: Number(process.env.AI_TIMEOUT_MS || 45000),
   };
@@ -45,8 +59,8 @@ export function sttConfig(): SttConfig | null {
   };
 }
 
-export function aiEnabled(): boolean {
-  return aiConfig() !== null;
+export async function aiEnabled(): Promise<boolean> {
+  return (await aiConfig()) !== null;
 }
 
 export function sttEnabled(): boolean {

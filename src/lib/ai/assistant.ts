@@ -168,7 +168,7 @@ async function* streamOnce(
  * 文本是边生成边 yield 的，所以前端能逐字显示。
  */
 export async function* runAssistant(args: AssistantArgs): AsyncGenerator<AssistantEvent> {
-  const cfg = aiConfig();
+  const cfg = await aiConfig();
   if (!cfg) {
     yield {
       type: "error",

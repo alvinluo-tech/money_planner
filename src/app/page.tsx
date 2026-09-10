@@ -5,6 +5,8 @@ import { formatMoney } from "@/lib/money";
 import { dateRangeLabel, HEALTH_META } from "@/lib/ui/format";
 import { loadTripContext } from "@/lib/services/trip";
 
+import { ModelSelector } from "@/components/model-selector";
+
 export const dynamic = "force-dynamic";
 
 export default async function HomePage({
@@ -29,17 +31,20 @@ export default async function HomePage({
 
   return (
     <main className="mx-auto w-full max-w-3xl px-5 py-10">
-      <header className="mb-8">
-        <p className="text-xs font-medium tracking-widest text-brand">MONEY PLANNER</p>
-        <h1 className="mt-2 text-2xl font-semibold">我的旅行</h1>
-        <p className="mt-1.5 text-sm text-ink-muted">
-          说一句话记账，AI 帮你盯住预算。
-          {resolveDataMode() === "memory" && (
-            <span className="ml-1.5 rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand">
-              演示模式
-            </span>
-          )}
-        </p>
+      <header className="mb-8 flex items-start justify-between">
+        <div>
+          <p className="text-xs font-medium tracking-widest text-brand">MONEY PLANNER</p>
+          <h1 className="mt-2 text-2xl font-semibold">我的旅行</h1>
+          <p className="mt-1.5 text-sm text-ink-muted">
+            说一句话记账，AI 帮你盯住预算。
+            {resolveDataMode() === "memory" && (
+              <span className="ml-1.5 rounded-full bg-brand-soft px-2 py-0.5 text-xs font-medium text-brand">
+                演示模式
+              </span>
+            )}
+          </p>
+        </div>
+        <ModelSelector />
       </header>
 
       {trips.length === 0 ? (

@@ -10,7 +10,7 @@ export async function GET() {
     ok: true,
     dataMode: resolveDataMode(),
     supabaseConfigured: supabaseConfigured(),
-    aiEnabled: aiEnabled(),
+    aiEnabled: await aiEnabled(),
     sttEnabled: sttEnabled(),
     time: new Date().toISOString(),
   });

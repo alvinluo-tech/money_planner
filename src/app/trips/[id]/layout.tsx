@@ -7,6 +7,7 @@ import { describeRoute } from "@/lib/legs";
 import { dateRangeLabel } from "@/lib/ui/format";
 import { TripNav } from "@/components/trip-nav";
 import { VoiceCapture } from "@/components/voice-capture";
+import { ModelSelector } from "@/components/model-selector";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,9 @@ export default async function TripLayout({
                 </span>
               )}
             </p>
+          </div>
+          <div className="shrink-0 self-start mt-8 hidden sm:block">
+            <ModelSelector />
           </div>
         </div>
         <div className="mt-4">

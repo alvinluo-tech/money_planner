@@ -151,7 +151,7 @@ export interface AnalyzeResult extends LlmInsight {
 
 export async function analyzeTrip(args: AnalyzeArgs): Promise<AnalyzeResult> {
   const fallback = ruleBasedInsight(args.summary);
-  if (!aiConfig()) return { ...fallback, engine: "rules", model: null };
+  if (!(await aiConfig())) return { ...fallback, engine: "rules", model: null };
 
   try {
     const { data, model } = await chatJson({

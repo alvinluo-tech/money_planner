@@ -58,7 +58,7 @@ function extractJson(text: string): unknown {
 }
 
 async function callChat(
-  cfg: NonNullable<ReturnType<typeof aiConfig>>,
+  cfg: NonNullable<Awaited<ReturnType<typeof aiConfig>>>,
   messages: Array<{ role: string; content: string }>,
   temperature: number,
   useJsonMode: boolean,
@@ -98,7 +98,7 @@ export interface ChatJsonResult<T> {
 
 /** 让模型返回符合 zod schema 的 JSON，带一轮自我修复 */
 export async function chatJson<T>(options: ChatJsonOptions<T>): Promise<ChatJsonResult<T>> {
-  const cfg = aiConfig();
+  const cfg = await aiConfig();
   if (!cfg) throw new AiUnavailableError();
 
   const temperature = options.temperature ?? 0.1;

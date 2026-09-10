@@ -47,7 +47,7 @@ export default async function ExpensesPage({ params }: { params: Promise<{ id: s
         categories={categories}
         baseCurrency={summary.baseCurrency}
         today={today}
-        aiEnabled={aiEnabled()}
+        aiEnabled={await aiEnabled()}
       />
     </div>
   );

@@ -31,7 +31,7 @@ export default async function InsightsPage({
     <InsightsTabs
       tripId={id}
       insights={insights}
-      aiEnabled={aiEnabled()}
+      aiEnabled={await aiEnabled()}
       initialThreadId={thread?.id ?? null}
       initialMessages={messages}
       seedQuestion={q}

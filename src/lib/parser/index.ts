@@ -83,7 +83,7 @@ function normalizePayment(value: string | null | undefined): PaymentMethod | nul
  * 两条路径产出的形状完全一致，前端不需要区分。
  */
 export async function parseCapture(args: ParseCaptureArgs): Promise<ParsedCapture> {
-  const cfg = aiConfig();
+  const cfg = await aiConfig();
   const started = Date.now();
 
   if (!cfg) {
