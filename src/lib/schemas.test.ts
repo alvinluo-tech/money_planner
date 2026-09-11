@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { expenseDraftSchema, tripInputSchema } from "./schemas";
+import { aiPlanTripInputSchema, aiPlanTripOutputSchema, expenseDraftSchema, tripInputSchema } from "./schemas";
 
 describe("币种校验", () => {
   it("接受支持列表内的币种（大小写不敏感）", () => {
@@ -77,5 +77,40 @@ describe("币种校验", () => {
       ],
     });
     expect(valid.success).toBe(true);
+  });
+
+  it("AI规划行程输入与输出校验", () => {
+    const emptyInput = aiPlanTripInputSchema.safeParse({ prompt: "  " });
+    expect(emptyInput.success).toBe(false);
+
+    const validPlan = aiPlanTripOutputSchema.safeParse({
+      name: "日本关西枫叶季",
+      destination: "日本 · 京都",
+      coverEmoji: "🇯🇵",
+      startDate: "2026-11-01",
+      endDate: "2026-11-07",
+      baseCurrency: "CNY",
+      budgets: [
+        { currency: "jpy", amount: "150000", label: "日元刷卡" },
+        { currency: "cny", amount: 3000, label: "备用" },
+      ],
+      legs: [
+        {
+          name: "京都",
+          countryCode: "jp",
+          currency: "jpy",
+          timezone: "Asia/Tokyo",
+          startDate: "2026-11-01",
+          endDate: "2026-11-07",
+        },
+      ],
+      suggestion: "秋季京都红叶旺季，建议多预留现金。",
+    });
+    expect(validPlan.success).toBe(true);
+    if (validPlan.success) {
+      expect(validPlan.data.budgets[0].currency).toBe("JPY");
+      expect(validPlan.data.budgets[0].amount).toBe(150000);
+      expect(validPlan.data.legs?.[0].countryCode).toBe("JP");
+    }
   });
 });

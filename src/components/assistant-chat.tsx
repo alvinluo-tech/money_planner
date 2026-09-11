@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { AiMessage } from "@/lib/types";
 import { cx } from "@/lib/ui/format";
+import { VoiceInputButton } from "@/components/voice-input-button";
 
 interface ChatItem {
   id: string;
@@ -235,19 +236,30 @@ export function AssistantChat({
       </div>
 
       <div className="flex items-end gap-2">
-        <input
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="问点什么，比如「上个月在日本吃的最贵的一顿」"
-          className="input"
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void send(input);
-            }
-          }}
-          disabled={streaming}
-        />
+        <div className="relative flex-1">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="问点什么，比如「上个月在日本吃的最贵的一顿」"
+            className="input pr-10"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                void send(input);
+              }
+            }}
+            disabled={streaming}
+          />
+          <div className="absolute right-1.5 top-1/2 -translate-y-1/2">
+            <VoiceInputButton
+              size="sm"
+              title="语音输入问题"
+              onTranscript={(text) => {
+                setInput((prev) => (prev ? `${prev} ${text}` : text));
+              }}
+            />
+          </div>
+        </div>
         <button
           type="button"
           onClick={() => void send(input)}

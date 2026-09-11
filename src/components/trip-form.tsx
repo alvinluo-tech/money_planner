@@ -3,10 +3,12 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
+import { Sparkles, Loader2 } from "lucide-react";
 import { CURRENCY_LIST } from "@/lib/currency";
 import { validateLegs } from "@/lib/legs";
 import { cx } from "@/lib/ui/format";
 import { LegsField, newLegRow, type LegRow } from "@/components/leg-editor";
+import { VoiceInputButton } from "@/components/voice-input-button";
 
 interface BudgetRow {
   uid: string;
@@ -104,6 +106,70 @@ export function TripForm() {
   ]);
   const [legs, setLegs] = useState<LegRow[]>([]);
   const [saving, setSaving] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiPlanning, setAiPlanning] = useState(false);
+  const [aiSuggestion, setAiSuggestion] = useState("");
+
+  const handleAiPlan = async (overridePrompt?: string) => {
+    const text = (overridePrompt || aiPrompt).trim();
+    if (!text) {
+      toast.error("请先说出或输入你的行程需求");
+      return;
+    }
+    if (overridePrompt) {
+      setAiPrompt(overridePrompt);
+    }
+    setAiPlanning(true);
+    setAiSuggestion("");
+    try {
+      const res = await fetch("/api/trips/ai-plan", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ prompt: text, today: isoToday(0) }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.ok || !data.plan) {
+        throw new Error(data.error || "规划失败");
+      }
+      const p = data.plan;
+      setName(p.name);
+      setDestination(p.destination || "");
+      setEmoji(p.coverEmoji || "✈️");
+      setStartDate(p.startDate);
+      setEndDate(p.endDate);
+      setBaseCurrency(p.baseCurrency || "CNY");
+      setBudgets(
+        p.budgets.map((b: any, i: number) => ({
+          uid: `ai-${i}-${Date.now()}`,
+          currency: b.currency,
+          amount: String(b.amount),
+          label: b.label || "",
+        })),
+      );
+      if (p.legs && p.legs.length > 0) {
+        setLegs(
+          p.legs.map((l: any, i: number) => ({
+            ...newLegRow(l.startDate, l.endDate),
+            uid: `ail-${i}-${Date.now()}`,
+            name: l.name,
+            countryCode: l.countryCode || "",
+            currency: l.currency,
+            timezone: l.timezone || "Asia/Shanghai",
+          })),
+        );
+      } else {
+        setLegs([]);
+      }
+      if (p.suggestion) {
+        setAiSuggestion(p.suggestion);
+      }
+      toast.success(`✨ 已为你生成方案：「${p.name}」`);
+    } catch (err: any) {
+      toast.error(err.message || "AI 规划出错，请重试");
+    } finally {
+      setAiPlanning(false);
+    }
+  };
 
   const days = useMemo(() => {
     const a = Date.parse(`${startDate}T00:00:00Z`);
@@ -209,8 +275,102 @@ export function TripForm() {
 
   return (
     <div className="space-y-6">
+      {/* ---------- AI 智能一句话建行程 ---------- */}
+      <section className="card border-brand/30 bg-gradient-to-br from-brand-soft/20 via-surface to-surface p-5 shadow-sm space-y-3.5">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-brand text-white">
+              <Sparkles className="h-4 w-4" />
+            </span>
+            <h2 className="text-sm font-semibold text-ink">AI 语音 / 一句话智能建行程</h2>
+          </div>
+          <span className="rounded-full bg-brand-soft px-2 py-0.5 text-[11px] font-medium text-brand">
+            省心免打字
+          </span>
+        </div>
+
+        <p className="text-xs text-ink-muted leading-relaxed">
+          点击右侧麦克风说出需求，或直接输入；AI 将自动推算日期、目的地时区、换算多币种预算并智能划分城市分段。
+        </p>
+
+        <div className="relative flex items-center">
+          <input
+            value={aiPrompt}
+            onChange={(e) => setAiPrompt(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && !aiPlanning) {
+                e.preventDefault();
+                void handleAiPlan();
+              }
+            }}
+            placeholder="例如：国庆去日本东京和京都7天，预算1万5人民币，主要用日元，备用人民币"
+            className="input pr-24 text-sm"
+            disabled={aiPlanning}
+          />
+          <div className="absolute right-2 flex items-center gap-1.5">
+            <VoiceInputButton
+              size="sm"
+              title="语音说出需求"
+              onTranscript={(text) => {
+                setAiPrompt(text);
+                void handleAiPlan(text);
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => void handleAiPlan()}
+              disabled={aiPlanning || !aiPrompt.trim()}
+              className="btn-brand h-7 px-2.5 text-xs shrink-0 flex items-center gap-1"
+            >
+              {aiPlanning ? (
+                <>
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  生成中
+                </>
+              ) : (
+                "生成"
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* 灵感快捷提示 */}
+        <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+          <span className="text-[11px] text-ink-muted">试试：</span>
+          {[
+            "国庆去日本东京和京都7天，预算1万5人民币",
+            "下周去英国伦敦6天，预算1500镑",
+            "法意瑞12天浪漫游，总预算2.5万",
+            "周末去香港吃喝玩乐3天，预算5000港币",
+          ].map((sample) => (
+            <button
+              key={sample}
+              type="button"
+              disabled={aiPlanning}
+              onClick={() => {
+                setAiPrompt(sample);
+                void handleAiPlan(sample);
+              }}
+              className="rounded-lg bg-surface px-2 py-1 text-[11px] text-ink-soft border border-line hover:border-brand hover:text-brand transition-colors text-left"
+            >
+              {sample}
+            </button>
+          ))}
+        </div>
+
+        {aiSuggestion && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-3 text-xs text-emerald-900 flex items-start gap-2">
+            <span className="text-sm">💡</span>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-emerald-800">AI 规划建议</p>
+              <p className="mt-0.5 text-emerald-700 leading-relaxed">{aiSuggestion}</p>
+            </div>
+          </div>
+        )}
+      </section>
+
       <section className="card p-5">
-        <h2 className="section-title mb-3">快速开始</h2>
+        <h2 className="section-title mb-3">常规模板快速开始</h2>
         <div className="flex flex-wrap gap-2">
           {PRESETS.map((preset) => (
             <button key={preset.name} type="button" onClick={() => applyPreset(preset)} className="chip">

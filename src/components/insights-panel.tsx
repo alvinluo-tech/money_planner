@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { AiInsight } from "@/lib/types";
 import { cx, SEVERITY_META } from "@/lib/ui/format";
+import { VoiceInputButton } from "@/components/voice-input-button";
 
 interface InsightMetrics {
   verdict?: string;
@@ -60,15 +61,19 @@ export function InsightsPanel({
             ? "会结合你的预算、日均节奏和消费结构给出判断与具体建议。"
             : "未配置大模型，将使用本地规则生成结论（数字同样准确，只是措辞更机械）。"}
         </p>
-        <div className="mt-3 flex gap-2">
+        <div className="mt-3 flex items-center gap-2">
           <input
             value={question}
             onChange={(e) => setQuestion(e.target.value)}
             placeholder="想问点什么？例如「我还能买那个包吗」"
-            className="input"
+            className="input flex-1"
             onKeyDown={(e) => {
               if (e.key === "Enter" && !loading) void generate(question);
             }}
+          />
+          <VoiceInputButton
+            onTranscript={(text) => setQuestion((prev) => (prev ? `${prev} ${text}` : text))}
+            title="语音提问"
           />
         </div>
         <div className="mt-3 flex gap-2">

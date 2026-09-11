@@ -5,6 +5,7 @@ import { formatMoney, formatPercent } from "@/lib/money";
 import type { Category, Expense } from "@/lib/types";
 import { cx, dayLabel, timeLabel } from "@/lib/ui/format";
 import { ExpenseRowActions } from "@/components/expense-row-actions";
+import { VoiceInputButton } from "@/components/voice-input-button";
 
 const PAYMENT_LABEL: Record<string, string> = {
   cash: "现金",
@@ -80,15 +81,21 @@ export function ExpenseList({
     <div className="space-y-4">
       {/* 搜索 + 筛选 */}
       <div className="space-y-3">
-        <input
-          type="search"
-          inputMode="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="搜索商家、备注…"
-          className="input"
-          aria-label="搜索消费记录"
-        />
+        <div className="flex items-center gap-2">
+          <input
+            type="search"
+            inputMode="search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="搜索商家、备注…（支持语音）"
+            className="input flex-1"
+            aria-label="搜索消费记录"
+          />
+          <VoiceInputButton
+            onTranscript={(text) => setQuery((prev) => (prev ? `${prev} ${text}` : text))}
+            title="语音搜索"
+          />
+        </div>
         {aiEnabled && (
           <Link
             href={`/trips/${tripId}/insights?tab=chat${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}`}

@@ -203,3 +203,45 @@ export const llmInsightSchema = z.object({
 });
 
 export type LlmInsight = z.infer<typeof llmInsightSchema>;
+
+/** AI 一句话规划行程的输入契约 */
+export const aiPlanTripInputSchema = z.object({
+  prompt: z.string().trim().min(1, "请输入或说出旅行需求").max(2000),
+  today: isoDate.optional(),
+});
+
+export type AiPlanTripInput = z.infer<typeof aiPlanTripInputSchema>;
+
+/** AI 一句话规划行程的返回契约 */
+export const aiPlanTripOutputSchema = z.object({
+  name: z.string().trim().min(1).max(80),
+  destination: z.string().trim().max(80).nullable().optional(),
+  coverEmoji: z.string().trim().max(8).default("✈️"),
+  startDate: isoDate,
+  endDate: isoDate,
+  baseCurrency: currencyCode.default("CNY"),
+  budgets: z
+    .array(
+      z.object({
+        currency: currencyCode,
+        amount: z.coerce.number().positive("预算金额必须大于 0"),
+        label: z.string().trim().max(40).default(""),
+      }),
+    )
+    .min(1, "至少需要一个币种的预算"),
+  legs: z
+    .array(
+      z.object({
+        name: z.string().trim().min(1).max(40),
+        countryCode: z.string().trim().length(2).toUpperCase().nullable().optional(),
+        currency: currencyCode,
+        timezone: z.string().trim().max(60).default("Asia/Shanghai"),
+        startDate: isoDate,
+        endDate: isoDate,
+      }),
+    )
+    .optional(),
+  suggestion: z.string().trim().max(500).optional(),
+});
+
+export type AiTripPlan = z.infer<typeof aiPlanTripOutputSchema>;
