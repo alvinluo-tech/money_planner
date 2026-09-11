@@ -15,8 +15,12 @@ import { cookies } from "next/headers";
 export async function aiConfig(): Promise<AiConfig | null> {
   const apiKey = process.env.AI_API_KEY?.trim();
   if (!apiKey) return null;
-  
-  let model = process.env.AI_MODEL || "gpt-4o-mini";
+
+  const baseUrl = (process.env.AI_BASE_URL || "https://api.deepseek.com").replace(/\/+$/, "");
+  const isDeepSeek = baseUrl.includes("deepseek.com");
+  const defaultModel = isDeepSeek ? "deepseek-flash" : "gpt-4o-mini";
+
+  let model = process.env.AI_MODEL || defaultModel;
   try {
     const cookieStore = await cookies();
     const preferredModel = cookieStore.get("ai-model-preference")?.value;
@@ -33,7 +37,7 @@ export async function aiConfig(): Promise<AiConfig | null> {
 
   return {
     apiKey,
-    baseUrl: (process.env.AI_BASE_URL || "https://api.openai.com/v1").replace(/\/+$/, ""),
+    baseUrl,
     model,
     jsonMode: process.env.AI_JSON_MODE !== "false",
     timeoutMs: Number(process.env.AI_TIMEOUT_MS || 45000),
@@ -48,16 +52,25 @@ export interface SttConfig {
 }
 
 export function sttConfig(): SttConfig | null {
-  // 没单独配 STT 时复用 AI 的 key（同一家服务商的情况很常见）
-  const apiKey = (process.env.STT_API_KEY || process.env.AI_API_KEY)?.trim();
+  const sttKey = process.env.STT_API_KEY?.trim();
+  const apiKey = sttKey || process.env.AI_API_KEY?.trim();
   if (!apiKey) return null;
+
+  const baseUrl = (
+    process.env.STT_BASE_URL ||
+    process.env.AI_BASE_URL ||
+    "https://api.openai.com/v1"
+  ).replace(/\/+$/, "");
+
+  // DeepSeek 纯文本/推理模型未提供 /audio/transcriptions 语音识别接口
+  // 若未单独配置 STT_API_KEY 且当前使用 DeepSeek，则自动关闭云端 STT 避免抛错
+  if (!sttKey && baseUrl.includes("deepseek.com")) {
+    return null;
+  }
+
   return {
     apiKey,
-    baseUrl: (
-      process.env.STT_BASE_URL ||
-      process.env.AI_BASE_URL ||
-      "https://api.openai.com/v1"
-    ).replace(/\/+$/, ""),
+    baseUrl,
     model: process.env.STT_MODEL || "whisper-1",
     language: process.env.STT_LANGUAGE || "zh",
   };
