@@ -26,6 +26,7 @@ export function ExpenseRowActions({
   const [currency, setCurrency] = useState(expense.currency);
   const [categoryKey, setCategoryKey] = useState(expense.categoryKey ?? "other");
   const [merchant, setMerchant] = useState(expense.merchant ?? "");
+  const [note, setNote] = useState(expense.note ?? "");
   const [spentOn, setSpentOn] = useState(expense.spentOn);
 
   const save = async () => {
@@ -41,7 +42,8 @@ export function ExpenseRowActions({
           amount: value,
           currency,
           categoryKey,
-          merchant: merchant || null,
+          merchant: merchant.trim() || null,
+          note: note.trim() || null,
           spentOn,
         }),
       });
@@ -162,6 +164,16 @@ export function ExpenseRowActions({
             className="input"
           />
         </div>
+      </div>
+
+      <div>
+        <label className="label">备注 / 具体内容</label>
+        <input
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="如：吃麦当劳、从卢浮宫打车到凯旋门"
+          className="input text-sm"
+        />
       </div>
 
       <div className="flex gap-2">

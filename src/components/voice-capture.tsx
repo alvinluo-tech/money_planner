@@ -763,7 +763,7 @@ export function VoiceCapture({
                   ) : (
                     drafts.map((draft, index) => (
                       <div key={draft.uid} className="card-flat p-4">
-                        <div className="mb-3 flex items-center justify-between">
+                        <div className="mb-2 flex items-center justify-between">
                           <span className="text-xs font-medium text-ink-muted">第 {index + 1} 笔</span>
                           <div className="flex items-center gap-2">
                             <ConfidenceBadge value={draft.confidence} />
@@ -776,6 +776,19 @@ export function VoiceCapture({
                             </button>
                           </div>
                         </div>
+
+                        {(draft.merchant || draft.note) && (
+                          <div className="mb-2.5">
+                            <p className="text-sm font-semibold text-ink">
+                              {(draft.merchant && !["打车", "消费", "买东西"].includes(draft.merchant))
+                                ? draft.merchant
+                                : (draft.note || draft.merchant)}
+                            </p>
+                            {draft.note && draft.merchant && draft.note !== draft.merchant && (
+                              <p className="mt-0.5 text-xs text-ink-muted">{draft.note}</p>
+                            )}
+                          </div>
+                        )}
 
                         <div className="mt-1 flex items-end gap-2.5">
                           <div className="min-w-0 flex-1">
@@ -830,32 +843,42 @@ export function VoiceCapture({
                           onClick={() => patchDraft(draft.uid, { expanded: !draft.expanded })}
                           className="mt-2 min-h-9 text-xs font-medium text-brand"
                         >
-                          {draft.expanded ? "收起" : "更多选项：商家 / 日期 / 支付方式"}
+                          {draft.expanded ? "收起" : "更多选项：商家 / 备注 / 日期 / 支付方式"}
                         </button>
 
                         {draft.expanded && (
                           <div className="mt-2 space-y-3 border-t border-line pt-3">
-                          <div className="grid grid-cols-2 gap-3">
-                          <div>
-                            <label className="label">商家 / 地点</label>
-                            <input
-                              value={draft.merchant}
-                              onChange={(e) => patchDraft(draft.uid, { merchant: e.target.value })}
-                              placeholder="可留空"
-                              className="input"
-                            />
-                          </div>
-                          <div>
-                            <label className="label">日期</label>
-                            <input
-                              type="date"
-                              value={draft.spentOn}
-                              max={today}
-                              onChange={(e) => patchDraft(draft.uid, { spentOn: e.target.value })}
-                              className="input"
-                            />
-                          </div>
-                        </div>
+                            <div className="grid grid-cols-2 gap-3">
+                              <div>
+                                <label className="label">商家 / 地点</label>
+                                <input
+                                  value={draft.merchant}
+                                  onChange={(e) => patchDraft(draft.uid, { merchant: e.target.value })}
+                                  placeholder="可留空"
+                                  className="input text-sm"
+                                />
+                              </div>
+                              <div>
+                                <label className="label">日期</label>
+                                <input
+                                  type="date"
+                                  value={draft.spentOn}
+                                  max={today}
+                                  onChange={(e) => patchDraft(draft.uid, { spentOn: e.target.value })}
+                                  className="input text-sm"
+                                />
+                              </div>
+                            </div>
+
+                            <div>
+                              <label className="label">备注 / 具体内容</label>
+                              <input
+                                value={draft.note}
+                                onChange={(e) => patchDraft(draft.uid, { note: e.target.value })}
+                                placeholder="如：吃麦当劳、从卢浮宫打车到凯旋门"
+                                className="input text-sm"
+                              />
+                            </div>
 
                         <div className="mt-3">
                           <label className="label">支付方式</label>

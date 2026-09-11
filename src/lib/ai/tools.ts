@@ -130,7 +130,7 @@ async function loadFiltered(args: Record<string, unknown>, ctx: ToolContext): Pr
     if (to && e.spentOn > to) return false;
     if (legIds && !legIds.has(legForDate(ctx.legs, e.spentOn)?.id ?? "")) return false;
     if (categoryKey && (e.categoryKey ?? "other") !== categoryKey) return false;
-    if (merchant && !(e.merchant ?? "").toLowerCase().includes(merchant)) return false;
+    if (merchant && !(e.merchant ?? "").toLowerCase().includes(merchant) && !(e.note ?? "").toLowerCase().includes(merchant)) return false;
     if (currency && e.currency.toUpperCase() !== currency) return false;
     if (minAmount !== null && e.amount < minAmount) return false;
     if (maxAmount !== null && e.amount > maxAmount) return false;

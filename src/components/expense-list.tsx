@@ -197,13 +197,15 @@ export function ExpenseList({
                       </span>
                       <div className="min-w-0 flex-1">
                         <p className="truncate text-sm font-medium">
-                          {e.merchant || c?.name || "消费"}
+                          {(e.merchant && !["打车", "消费", "买东西"].includes(e.merchant))
+                            ? e.merchant
+                            : (e.note || e.merchant || c?.name || "消费")}
                         </p>
                         <p className="mt-0.5 truncate text-xs text-ink-muted">
                           {c?.name ?? "其他"} · {timeLabel(e.spentAt)}
                           {e.paymentMethod && ` · ${PAYMENT_LABEL[e.paymentMethod] ?? e.paymentMethod}`}
                           {e.source === "voice" && " · 语音"}
-                          {e.note && ` · ${e.note}`}
+                          {e.note && (e.merchant ? e.note !== e.merchant : false) && ` · ${e.note}`}
                         </p>
                       </div>
                       <div className="shrink-0 text-right">

@@ -53,7 +53,7 @@ function buildUserPrompt(args: {
   lines.push("=== 最近消费明细（最多 25 条）===");
   for (const e of expenses.slice(0, 25)) {
     lines.push(
-      `${e.spentOn} ${catName.get(e.categoryKey ?? "other") ?? e.categoryKey} ${formatMoney(e.amount, e.currency)}（≈${formatMoney(e.baseAmount, e.baseCurrency)}）${e.merchant ? ` @${e.merchant}` : ""}`,
+      `${e.spentOn} ${catName.get(e.categoryKey ?? "other") ?? e.categoryKey} ${formatMoney(e.amount, e.currency)}（≈${formatMoney(e.baseAmount, e.baseCurrency)}）${e.merchant ? ` @${e.merchant}` : ""}${e.note ? `（${e.note}）` : ""}`,
     );
   }
   if (args.question) {

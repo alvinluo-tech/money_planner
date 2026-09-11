@@ -58,6 +58,20 @@ describe("parseCaptureWithRules", () => {
     expect(result.drafts[0].categoryKey).toBe("food");
   });
 
+  it("识别动词前缀商家与具体交通打车路线", () => {
+    const r1 = parseCaptureWithRules("吃麦当劳花了10镑", ctx);
+    expect(r1.drafts[0].amount).toBe(10);
+    expect(r1.drafts[0].currency).toBe("GBP");
+    expect(r1.drafts[0].categoryKey).toBe("food");
+    expect(r1.drafts[0].merchant).toBe("麦当劳");
+
+    const r2 = parseCaptureWithRules("从卢浮宫打车到凯旋门20镑", ctx);
+    expect(r2.drafts[0].amount).toBe(20);
+    expect(r2.drafts[0].currency).toBe("GBP");
+    expect(r2.drafts[0].categoryKey).toBe("transport");
+    expect(r2.drafts[0].note).toBe("从卢浮宫打车到凯旋门");
+  });
+
   it("支持货币符号前缀", () => {
     const result = parseCaptureWithRules("£8 breakfast", ctx);
     expect(result.drafts[0].amount).toBe(8);

@@ -272,8 +272,10 @@ export default async function TripDashboard({ params }: { params: Promise<{ id: 
                       {c?.emoji ?? "💸"}
                     </span>
                     <div className="min-w-0">
-                      <p className="truncate text-sm">
-                        {e.merchant || c?.name || "消费"}
+                      <p className="truncate text-sm font-medium">
+                        {(e.merchant && !["打车", "消费", "买东西"].includes(e.merchant))
+                          ? e.merchant
+                          : (e.note || e.merchant || c?.name || "消费")}
                         {e.source === "voice" && (
                           <span className="ml-1.5 rounded bg-brand-soft px-1 py-0.5 text-[11px] text-brand">
                             语音
@@ -282,6 +284,7 @@ export default async function TripDashboard({ params }: { params: Promise<{ id: 
                       </p>
                       <p className="text-xs text-ink-muted">
                         {dayLabel(e.spentOn, today)} {timeLabel(e.spentAt)}
+                        {e.note && (e.merchant ? e.note !== e.merchant : false) && ` · ${e.note}`}
                       </p>
                     </div>
                   </div>

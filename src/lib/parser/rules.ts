@@ -267,8 +267,16 @@ function findCategory(segment: string): { key: string; matched: boolean } {
 }
 
 function findMerchant(segment: string): { merchant: string | null; span: [number, number] | null } {
+  // 1. 打车 / 交通路线：从 A 到 B / 从 A 打车到 B
+  const route = segment.match(/从([\u4e00-\u9fa5A-Za-z0-9'’&\-·]{2,14}?)(?:打车到|坐车到|打车|坐车|乘车|到)([\u4e00-\u9fa5A-Za-z0-9'’&\-·]{2,14}?)(?=\d|花了|花|了|\s|$)/);
+  if (route) {
+    const start = route.index ?? 0;
+    return { merchant: "打车", span: [start, start + route[0].length] };
+  }
+
   const patterns = [
     /(?:在|到)([\u4e00-\u9fa5A-Za-z0-9'’&\-·]{2,14}?)(?:吃|喝|买|花|住|坐|订|玩|看|的|花了)/,
+    /(?:吃|喝|去|逛)([\u4e00-\u9fa5A-Za-z0-9'’&\-·]{2,14}?)(?:花了|花|了|\s|\d)/,
     /(?:at|from)\s+([A-Za-z0-9'’&\-· ]{2,20})/i,
   ];
   for (const p of patterns) {
@@ -323,6 +331,12 @@ function findDate(segment: string, ctx: RuleParseContext): string {
 
 /** 去掉已识别的片段，剩下的当备注 */
 function buildNote(segment: string, spans: Array<[number, number] | null>): string | null {
+  // 如果整句话包含明确路线（如「从卢浮宫打车到凯旋门」），优先保留完整路线描述
+  const route = segment.match(/从[\u4e00-\u9fa5A-Za-z0-9'’&\-·]{2,14}?(?:打车到|坐车到|打车|坐车|乘车|到)[\u4e00-\u9fa5A-Za-z0-9'’&\-·]{2,14}?(?=\d|花了|花|了|\s|$)/);
+  if (route) {
+    return route[0];
+  }
+
   const chars = Array.from(segment);
   const removed = new Set<number>();
   for (const span of spans) {
