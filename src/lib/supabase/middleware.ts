@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { resolveDataMode } from "@/lib/data-mode";
 
-const PUBLIC_PATHS = ["/login", "/auth", "/api/health"];
+const PUBLIC_PATHS = ["/login", "/auth", "/api/auth", "/api/health", "/manifest.webmanifest"];
 
 /** 刷新 Supabase 会话并把未登录用户挡在 /trips 之外 */
 export async function updateSession(request: NextRequest) {
