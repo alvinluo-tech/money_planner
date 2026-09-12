@@ -12,22 +12,44 @@ const SYSTEM_PROMPT = `你是专业的「旅行预算与行程规划」AI 助手
    - coverEmoji: 贴合目的地的Emoji国旗或标志物（如 🇫🇷, 🇮🇹, 🇯🇵, 🇬🇧, 🇨🇭, 🇹🇭, 🇪🇺 等）
    - startDate: YYYY-MM-DD
    - endDate: YYYY-MM-DD（天数必须与用户表达严格吻合，例如9日游即为起始日期到结束日期共9天）
-   - baseCurrency: 本国结算币种代码，默认 CNY
-   - budgets: 多币种预算数组。针对目的地准确匹配币种（例如法国和意大利均通用 EUR 欧元，只需设置一个 EUR 预算和一个 CNY 备用金，不要冗余重复）。
+   - baseCurrency: 本国结算基准币代码。关键原则：结算币种必须以用户的习惯和要求为主！
+     * 若用户提了「预算1500英镑/镑」或「英镑记账」，基准币就是 GBP；
+     * 若用户提了「美元/刀」，基准币就是 USD；
+     * 若用户提了「人民币/元」，基准币就是 CNY；
+     * 若用户人在海外或用英镑银行卡（哪怕去欧洲/日本旅游），只要提了英镑，基准币就是 GBP，方便用户与自己的银行账户对账；
+     * 未提及任何特定货币时，默认 CNY。
+   - budgets: 多币种预算数组。
+     * 若用户指定了特定结算币种（如英镑 1500 镑），第一项主预算必须是该币种（GBP 1500，设为主预算）；
+     * 若目的地使用当地货币（如法国意大利使用 EUR），可贴心地自动按大致汇率增加一项当地参考预算（例如 EUR 1750），方便在当地花现金时参照；
+     * 预算金额必须是正数。
    - legs: 城市分段列表。重要原则：若用户未主动说明前几天在哪个城市、后几天在哪个城市，绝对不要擅自强行编造日程分段，legs 直接给空数组 []！只有在用户明确说了城市节奏安排时才输出分段。
    - suggestion: 简短贴心的预算建议（40字内）。
 
 规划原则：
-1. 命名尊重用户：保持简短自然，字面意思为主。
-2. 日期推算：以参考基准 today 为准。未提具体起止日期只说了天数（如「9日游」），默认从明天开始顺延9天。
-3. 币种：必须为 ISO 4217 三位大写代码（如 EUR, GBP, JPY, CNY, USD, CHF 等）。欧洲多国（法意西德葡荷等）统一使用 EUR。
-4. 极简实用：核心是帮用户管好总账和币种，不要增加虚假的城市日程负担。
+1. 结算基准币完全随用户：用户用什么币种看账单（英镑、美元、人民币等），基准币就定为什么，跨币种消费（如在欧洲花欧元）系统会自动按汇率折算回用户的基准币。
+2. 命名尊重用户：保持简短自然，字面意思为主。
+3. 极简实用：核心是帮用户管好总账和币种，不要增加虚假的城市日程负担。
 `;
 
 function fallbackTripPlan(prompt: string, today: string): AiTripPlan {
   const isJapan = /日本|东京|京都|大阪|北海道|冲绳/.test(prompt);
   const isUK = /英国|伦敦|爱丁堡|曼彻斯特/.test(prompt);
   const isEuro = /法国|意大利|欧洲|巴黎|罗马|米兰|德国|西班牙/.test(prompt);
+
+  const hasGbp = /英镑|镑|gbp/i.test(prompt);
+  const hasEur = /欧元|欧|eur/i.test(prompt);
+  const hasUsd = /美元|刀|usd/i.test(prompt);
+  const baseCurrency = hasGbp ? "GBP" : hasEur ? "EUR" : hasUsd ? "USD" : "CNY";
+
+  // 提取用户可能提到的金额
+  const amountMatch = prompt.match(/(\d+(?:\.\d+)?)\s*(?:万|k|千|镑|英镑|欧|欧元|元|块)?/i);
+  let amount = 1500;
+  if (amountMatch) {
+    let raw = parseFloat(amountMatch[1]);
+    if (prompt.includes("万")) raw *= 10000;
+    else if (prompt.includes("k") || prompt.includes("K") || prompt.includes("千")) raw *= 1000;
+    if (raw > 0) amount = raw;
+  }
 
   // 提取用户可能提到的天数（如 9日游、9天）
   const daysMatch = prompt.match(/(\d+)\s*(?:日|天)/);
@@ -41,36 +63,52 @@ function fallbackTripPlan(prompt: string, today: string): AiTripPlan {
   const cleanName = prompt.replace(/^(我打算|我想去|计划去|准备去)/, "").trim() || "新旅行计划";
 
   if (isEuro) {
+    const budgetList = baseCurrency === "GBP"
+      ? [
+          { currency: "GBP", amount, label: "英镑总预算" },
+          { currency: "EUR", amount: Math.round(amount * 1.17), label: "折合欧元参考" },
+        ]
+      : [
+          { currency: "EUR", amount: baseCurrency === "EUR" ? amount : 2000, label: "欧元现金/刷卡" },
+          { currency: "CNY", amount: 5000, label: "人民币备用" },
+        ];
+
     return {
       name: cleanName,
       destination: "法国 · 意大利",
       coverEmoji: "🇪🇺",
       startDate,
       endDate,
-      baseCurrency: "CNY",
-      budgets: [
-        { currency: "EUR", amount: 2000, label: "欧元刷卡/现金" },
-        { currency: "CNY", amount: 5000, label: "人民币备用" },
-      ],
+      baseCurrency,
+      budgets: budgetList,
       legs: [],
-      suggestion: "法意两国通用欧元，已为您设好统一的欧元预算与备用金。",
+      suggestion: baseCurrency === "GBP"
+        ? "基准币已设为英镑，在欧洲消费欧元或英镑都会自动折算对账。"
+        : "法意两国通用欧元，已为您设好预算与备用金。",
     };
   }
 
   if (isJapan) {
+    const budgetList = baseCurrency === "GBP"
+      ? [
+          { currency: "GBP", amount, label: "英镑总预算" },
+          { currency: "JPY", amount: Math.round(amount * 190), label: "折合日元参考" },
+        ]
+      : [
+          { currency: "JPY", amount: 200000, label: "日元刷卡/现金" },
+          { currency: "CNY", amount: 3000, label: "人民币备用" },
+        ];
+
     return {
       name: cleanName,
       destination: "日本",
       coverEmoji: "🇯🇵",
       startDate,
       endDate,
-      baseCurrency: "CNY",
-      budgets: [
-        { currency: "JPY", amount: 200000, label: "日元刷卡/现金" },
-        { currency: "CNY", amount: 3000, label: "人民币备用" },
-      ],
+      baseCurrency,
+      budgets: budgetList,
       legs: [],
-      suggestion: "已预设好日元与人民币备用金预算，可在记账中随时调整。",
+      suggestion: "已为您设置好预算方案，可在记账中随时调整。",
     };
   }
 
@@ -81,13 +119,12 @@ function fallbackTripPlan(prompt: string, today: string): AiTripPlan {
       coverEmoji: "🇬🇧",
       startDate,
       endDate,
-      baseCurrency: "CNY",
+      baseCurrency: "GBP",
       budgets: [
-        { currency: "GBP", amount: 1000, label: "英镑刷卡/现金" },
-        { currency: "CNY", amount: 5000, label: "人民币备用" },
+        { currency: "GBP", amount, label: "英镑预算" },
       ],
       legs: [],
-      suggestion: "已预设好英镑与人民币备用金预算。",
+      suggestion: "已预设好英镑预算方案。",
     };
   }
 
@@ -97,9 +134,9 @@ function fallbackTripPlan(prompt: string, today: string): AiTripPlan {
     coverEmoji: "✈️",
     startDate,
     endDate,
-    baseCurrency: "CNY",
+    baseCurrency,
     budgets: [
-      { currency: "CNY", amount: 10000, label: "总预算" },
+      { currency: baseCurrency, amount, label: "总预算" },
     ],
     legs: [],
     suggestion: "已为您创建基础预算模板。",
