@@ -163,6 +163,7 @@ export const llmCaptureSchema = z.object({
           note: z.string().trim().max(500).nullable().optional(),
           spentOn: z.string().trim().max(10).nullable().optional(),
           paymentMethod: z.string().trim().max(20).nullable().optional(),
+          tags: z.array(z.string().trim().max(40)).max(10).optional(),
         })
         .default({}),
       confidence: z.coerce.number().min(0).max(1).optional(),
@@ -182,6 +183,7 @@ export const llmCaptureSchema = z.object({
         paymentMethod: z.string().trim().max(20).optional().nullable(),
         confidence: z.coerce.number().min(0).max(1).optional(),
         reason: z.string().trim().max(200).optional(),
+        tags: z.array(z.string().trim().max(40)).max(10).optional(),
       }),
     )
     .max(20),

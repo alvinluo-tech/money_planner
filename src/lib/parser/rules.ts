@@ -1,5 +1,6 @@
 import { isSupportedCurrency, parseCurrencyAlias } from "../currency";
 import { roundMoney } from "../money";
+import { formatStayTag } from "../lodging";
 import type {
   CaptureIntent,
   CorrectionPatch,
@@ -329,6 +330,39 @@ function findDate(segment: string, ctx: RuleParseContext): string {
   return ctx.today;
 }
 
+function findStayRange(segment: string, ctx: RuleParseContext): { start: string; end: string; nights: number } | null {
+  // 3月12日到14日 / 12号到14号 / 12至14日
+  const mdRange = segment.match(/(\d{1,2})\s*月\s*(\d{1,2})\s*[号日]?\s*(?:到|至|-|~)\s*(?:(\d{1,2})\s*月\s*)?(\d{1,2})\s*[号日]/);
+  if (mdRange) {
+    const year = ctx.today.slice(0, 4);
+    const m1 = mdRange[1].padStart(2, "0");
+    const d1 = mdRange[2].padStart(2, "0");
+    const m2 = (mdRange[3] ?? mdRange[1]).padStart(2, "0");
+    const d2 = mdRange[4].padStart(2, "0");
+    const start = `${year}-${m1}-${d1}`;
+    const end = `${year}-${m2}-${d2}`;
+    const t1 = Date.parse(`${start}T00:00:00Z`);
+    const t2 = Date.parse(`${end}T00:00:00Z`);
+    if (t2 > t1) {
+      const nights = Math.round((t2 - t1) / 86_400_000);
+      return { start, end, nights };
+    }
+  }
+
+  const dRange = segment.match(/(?<![\d.])(\d{1,2})\s*[号日]?\s*(?:到|至|-|~)\s*(\d{1,2})\s*[号日](?!\d)/);
+  if (dRange) {
+    const d1 = Number(dRange[1]);
+    const d2 = Number(dRange[2]);
+    if (d2 > d1 && d1 >= 1 && d2 <= 31) {
+      const base = ctx.today.slice(0, 8); // YYYY-MM-
+      const start = `${base}${String(d1).padStart(2, "0")}`;
+      const end = `${base}${String(d2).padStart(2, "0")}`;
+      return { start, end, nights: d2 - d1 };
+    }
+  }
+  return null;
+}
+
 /** 去掉已识别的片段，剩下的当备注 */
 function buildNote(segment: string, spans: Array<[number, number] | null>): string | null {
   // 如果整句话包含明确路线（如「从卢浮宫打车到凯旋门」），优先保留完整路线描述
@@ -460,9 +494,24 @@ export function parseCaptureWithRules(
     const merchantHit = findMerchant(segment);
     const payment = findPaymentMethod(segment);
     const spentOn = findDate(segment, ctx);
+    const stayRange = findStayRange(segment, ctx);
+
+    const isLodging =
+      category.key === "lodging" ||
+      /(酒店|民宿|住宿|宾馆|hotel|airbnb|booking|两晚|\d+晚)/i.test(segment);
+
+    const tags: string[] = [];
+    let finalSpentOn = spentOn;
+    let finalCategoryKey = category.key;
+
+    if (stayRange && isLodging) {
+      tags.push(formatStayTag(stayRange.start, stayRange.end));
+      finalSpentOn = stayRange.start;
+      finalCategoryKey = "lodging";
+    }
 
     // 币种优先级：句中明确说的 > 该笔消费所属分段的币种 > 兜底默认币种
-    const fallback = ctx.defaultCurrencyForDate?.(spentOn) ?? ctx.defaultCurrency;
+    const fallback = ctx.defaultCurrencyForDate?.(finalSpentOn) ?? ctx.defaultCurrency;
     const raw = (amountHit.currency ?? fallback).toUpperCase();
     const currency = isSupportedCurrency(raw) ? raw : fallback.toUpperCase();
     const note = buildNote(segment, [amountHit.span, merchantHit.span]);
@@ -470,21 +519,21 @@ export function parseCaptureWithRules(
     let confidence = 0.45;
     if (amountHit.amount > 0) confidence += 0.25;
     if (amountHit.explicitCurrency) confidence += 0.15;
-    if (category.matched) confidence += 0.1;
+    if (category.matched || (stayRange && isLodging)) confidence += 0.1;
     if (payment) confidence += 0.03;
     confidence = Math.min(0.95, Math.round(confidence * 100) / 100);
 
     drafts.push({
       amount: roundMoney(amountHit.amount, currency),
       currency,
-      categoryKey: category.key,
+      categoryKey: finalCategoryKey,
       merchant: merchantHit.merchant,
       note,
-      spentOn,
+      spentOn: finalSpentOn,
       paymentMethod: payment,
       source: "voice",
       rawInput: transcript,
-      tags: [],
+      tags,
       aiConfidence: confidence,
       confidence,
       reason: "规则解析（未启用大模型或大模型不可用）",

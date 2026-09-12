@@ -29,8 +29,8 @@ const SYSTEM_PROMPT = `你是「旅行记账」应用的语音解析引擎。把
 硬性要求：
 1. 只输出 JSON，格式：
    {"intent":"add|correct|delete",
-    "expenses":[{"amount":数字,"currency":"ISO代码","categoryKey":"分类key","merchant":"商家或null","note":"具体消费内容或null","spentOn":"YYYY-MM-DD","paymentMethod":"cash|card|alipay|wechat|other|null","confidence":0到1}],
-    "correction":{"target":{"kind":"last|by_date|by_merchant|by_amount","date":"YYYY-MM-DD或null","merchant":"或null","amount":数字或null},"changes":{"amount":数字或null,"currency":"或null","categoryKey":"或null","merchant":"或null","note":"或null","spentOn":"YYYY-MM-DD或null","paymentMethod":"或null"},"confidence":0到1},
+    "expenses":[{"amount":数字,"currency":"ISO代码","categoryKey":"分类key","merchant":"商家或null","note":"具体消费内容或null","spentOn":"YYYY-MM-DD","paymentMethod":"cash|card|alipay|wechat|other|null","confidence":0到1,"tags":["stay:YYYY-MM-DD~YYYY-MM-DD等可选标签"]}],
+    "correction":{"target":{"kind":"last|by_date|by_merchant|by_amount","date":"YYYY-MM-DD或null","merchant":"或null","amount":数字或null},"changes":{"amount":数字或null,"currency":"或null","categoryKey":"或null","merchant":"或null","note":"或null","spentOn":"YYYY-MM-DD或null","paymentMethod":"或null","tags":["可选标签"]},"confidence":0到1},
     "warnings":["无法确定的说明"]}
 1b. 判断意图：用户是在「新记一笔」→ intent=add；在「修改刚才/某一笔」→ intent=correct 并填 correction；在「删掉某一笔」→ intent=delete。
    触发词：改成/改为/应该是/记错了/不是…是 → correct；删掉/撤销/去掉 → delete。
@@ -44,7 +44,10 @@ const SYSTEM_PROMPT = `你是「旅行记账」应用的语音解析引擎。把
 5. currency 必须是 3 位 ISO-4217 代码。口语映射：块/元/人民币→CNY，磅/镑/英镑→GBP，欧/欧元→EUR，美金/刀/美元→USD，日元/円→JPY，港币→HKD，泰铢→THB，韩元→KRW，新币/新元→SGD，澳币→AUD。
    用户没提币种时，先看这笔消费发生在哪一天、那一天在哪个国家（见 itinerary 的日期区间），用那个国家的币种；itinerary 没覆盖该日期才用 defaultCurrency。例如今天在巴黎、但用户说「昨天午饭 15」，而昨天还在伦敦，就应该是 GBP。
 6. categoryKey 只能从给定分类列表里选，选不出来用 other。
-7. spentOn：用户说「昨天」「前天」「3 号」要按 today 正确推算；没说就用 today。绝不能输出未来日期。
+7. spentOn 与预订/酒店分摊支持：
+   - 普通日常消费：用户说「昨天」「前天」「3 号」要按 today 正确推算；没说就用 today。除机票/酒店预订外不要输出超过旅行结束日的日期。
+   - 机票/跨城大交通：若用户提到了具体起飞/乘坐日期（如「买了16号飞罗马的机票80欧」），spentOn 设为航班乘坐日期（YYYY-MM-16），只要在 trip 范围内允许为未来日期。
+   - 酒店/民宿住宿：若用户提到入住起止日期或住几晚（如「12号到14号两晚酒店910欧」或「订了15号到18号酒店」），categoryKey 设为 lodging，spentOn 设为入住第一天，并且在 tags 中必须加入 "stay:YYYY-MM-DD~YYYY-MM-DD"（例如 ["stay:2026-09-12~2026-09-14"]），以便系统在每日统计中均匀分摊这几晚的房费！
 8. 听不清金额时不要编造，把该条省略并写进 warnings。
 9. confidence 表示你对该条记录的把握，0~1。
 `;
@@ -125,7 +128,7 @@ export async function parseCapture(args: ParseCaptureArgs): Promise<ParsedCaptur
         paymentMethod: normalizePayment(item.paymentMethod),
         source: "voice",
         rawInput: args.transcript,
-        tags: [],
+        tags: Array.isArray(item.tags) ? item.tags : [],
         aiConfidence: item.confidence ?? 0.8,
         aiModel: model,
         confidence: item.confidence ?? 0.8,

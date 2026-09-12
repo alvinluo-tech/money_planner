@@ -56,6 +56,8 @@ export function AssistantChat({
   const [items, setItems] = useState<ChatItem[]>(() => toItems(initialMessages));
   const [input, setInput] = useState(seedQuestion ?? "");
   const [streaming, setStreaming] = useState(false);
+  const [isListening, setIsListening] = useState(false);
+  const [liveVoiceText, setLiveVoiceText] = useState("");
   const threadRef = useRef<string | null>(initialThreadId);
   const bottomRef = useRef<HTMLDivElement | null>(null);
 
@@ -235,6 +237,19 @@ export function AssistantChat({
         <div ref={bottomRef} />
       </div>
 
+      {isListening && (
+        <div className="flex items-center gap-2 rounded-xl border border-brand/30 bg-brand-soft/50 px-3.5 py-2 text-xs text-brand animate-in fade-in">
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-brand" />
+          </span>
+          <span className="font-semibold shrink-0">正在聆听:</span>
+          <span className="truncate font-medium text-ink">
+            {liveVoiceText ? `「${liveVoiceText}」` : "请说话，如「这趟还剩多少钱」..."}
+          </span>
+        </div>
+      )}
+
       <div className="flex items-end gap-2">
         <div className="relative flex-1">
           <input
@@ -254,8 +269,18 @@ export function AssistantChat({
             <VoiceInputButton
               size="sm"
               title="语音输入问题"
+              onInterim={(text) => {
+                setLiveVoiceText(text);
+                setInput(text);
+              }}
               onTranscript={(text) => {
-                setInput((prev) => (prev ? `${prev} ${text}` : text));
+                setInput(text);
+                setIsListening(false);
+                setLiveVoiceText("");
+              }}
+              onListeningChange={(active) => {
+                setIsListening(active);
+                if (!active) setLiveVoiceText("");
               }}
             />
           </div>

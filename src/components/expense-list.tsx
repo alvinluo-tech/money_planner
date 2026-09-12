@@ -4,6 +4,7 @@ import Link from "next/link";
 import { formatMoney, formatPercent } from "@/lib/money";
 import type { Category, Expense } from "@/lib/types";
 import { cx, dayLabel, timeLabel } from "@/lib/ui/format";
+import { parseStayTag, formatStayBadge } from "@/lib/lodging";
 import { ExpenseRowActions } from "@/components/expense-row-actions";
 import { VoiceInputButton } from "@/components/voice-input-button";
 
@@ -36,6 +37,8 @@ export function ExpenseList({
   aiEnabled?: boolean;
 }) {
   const [query, setQuery] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const [liveVoiceText, setLiveVoiceText] = useState("");
   const [categoryKey, setCategoryKey] = useState<string | null>(null);
   const [currency, setCurrency] = useState<string | null>(null);
 
@@ -92,10 +95,35 @@ export function ExpenseList({
             aria-label="搜索消费记录"
           />
           <VoiceInputButton
-            onTranscript={(text) => setQuery((prev) => (prev ? `${prev} ${text}` : text))}
+            onInterim={(text) => {
+              setLiveVoiceText(text);
+              setQuery(text);
+            }}
+            onTranscript={(text) => {
+              setQuery(text);
+              setIsListening(false);
+              setLiveVoiceText("");
+            }}
+            onListeningChange={(active) => {
+              setIsListening(active);
+              if (!active) setLiveVoiceText("");
+            }}
             title="语音搜索"
           />
         </div>
+
+        {isListening && (
+          <div className="flex items-center gap-2 rounded-xl border border-brand/30 bg-brand-soft/50 px-3.5 py-2 text-xs text-brand animate-in fade-in">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-brand" />
+            </span>
+            <span className="font-semibold shrink-0">正在聆听:</span>
+            <span className="truncate font-medium text-ink">
+              {liveVoiceText ? `「${liveVoiceText}」` : "请说出搜索词，如「咖啡」或「打车」..."}
+            </span>
+          </div>
+        )}
         {aiEnabled && (
           <Link
             href={`/trips/${tripId}/insights?tab=chat${query.trim() ? `&q=${encodeURIComponent(query.trim())}` : ""}`}
@@ -207,6 +235,16 @@ export function ExpenseList({
                           {(e.merchant && !["打车", "消费", "买东西"].includes(e.merchant))
                             ? e.merchant
                             : (e.note || e.merchant || c?.name || "消费")}
+                          {(() => {
+                            const stay = parseStayTag(e.tags);
+                            if (!stay) return null;
+                            const badge = formatStayBadge(stay, e.amount, e.currency);
+                            return (
+                              <span className="ml-1.5 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-950/60 dark:text-sky-300">
+                                {badge.label}
+                              </span>
+                            );
+                          })()}
                         </p>
                         <p className="mt-0.5 truncate text-xs text-ink-muted">
                           {c?.name ?? "其他"} · {timeLabel(e.spentAt)}

@@ -1,6 +1,7 @@
 import { currencyExponent } from "./currency";
 import { formatMoney, formatPercent, roundMoney, safeDiv } from "./money";
 import { legForDate, sortLegs } from "./legs";
+import { parseStayTag, getStayDates } from "./lodging";
 import type { Expense, Trip, TripBudget, TripLeg } from "./types";
 
 /**
@@ -123,6 +124,10 @@ export interface BudgetSummary {
   health: BudgetHealth;
   todaySpent: number;
   yesterdaySpent: number;
+  /** 今日纯日常支出（餐饮、市内交通、游玩、购物等，排除住宿与航班大件） */
+  todayVariableSpent: number;
+  /** 今日平摊的住宿费用（若有） */
+  todayAmortizedLodging: number;
   byCategory: CategoryStat[];
   byCurrency: CurrencyStat[];
   budgetByCurrency: BudgetCurrencyStat[];
@@ -235,7 +240,8 @@ export function buildBudgetSummary(input: BuildBudgetInput): BudgetSummary {
   const legAcc = new Map<string, { spent: number; inLegCurrency: number; count: number }>();
 
   let spent = 0;
-  let todaySpent = 0;
+  let todayVariableSpent = 0;
+  let todayAmortizedLodging = 0;
 
   for (const e of expenses) {
     const baseAmount = baseAmountOf(e);
@@ -243,7 +249,6 @@ export function buildBudgetSummary(input: BuildBudgetInput): BudgetSummary {
     spent += baseAmount;
 
     const day = toDateOnly(e.spentOn || e.spentAt);
-    if (day === today) todaySpent += baseAmount;
 
     const leg = legForDate(legs, day);
     if (leg) {
@@ -280,11 +285,39 @@ export function buildBudgetSummary(input: BuildBudgetInput): BudgetSummary {
     curMap.set(cur, cs);
     consumedByCurrency.set(cur, (consumedByCurrency.get(cur) ?? 0) + baseAmount);
 
-    const ds = dayMap.get(day) ?? { date: day, spent: 0, cumulative: 0, allowed: 0, count: 0 };
-    ds.spent += baseAmount;
-    ds.count += 1;
-    dayMap.set(day, ds);
+    // 住宿平摊与固定/日常分类处理
+    const stay = parseStayTag(e.tags);
+    const isLodgingOrFlight =
+      ck === "lodging" ||
+      stay !== null ||
+      /(机票|航班|flight|航空)/i.test(e.note ?? "") ||
+      /(机票|航班|flight|航空)/i.test(e.merchant ?? "");
+
+    if (stay) {
+      const stayDates = getStayDates(stay);
+      const perNightBase = baseAmount / stay.nights;
+      for (const stayDate of stayDates) {
+        const ds = dayMap.get(stayDate) ?? { date: stayDate, spent: 0, cumulative: 0, allowed: 0, count: 0 };
+        ds.spent += perNightBase;
+        ds.count += 1;
+        dayMap.set(stayDate, ds);
+        if (stayDate === today) {
+          todayAmortizedLodging += perNightBase;
+        }
+      }
+    } else {
+      const ds = dayMap.get(day) ?? { date: day, spent: 0, cumulative: 0, allowed: 0, count: 0 };
+      ds.spent += baseAmount;
+      ds.count += 1;
+      dayMap.set(day, ds);
+    }
+
+    if (day === today && !isLodgingOrFlight) {
+      todayVariableSpent += baseAmount;
+    }
   }
+
+  const todaySpent = dayMap.get(today)?.spent ?? 0;
 
   spent = roundMoney(spent, base);
   const remaining = roundMoney(totalBudget - spent, base);
@@ -385,6 +418,8 @@ export function buildBudgetSummary(input: BuildBudgetInput): BudgetSummary {
     health,
     todaySpent: roundMoney(todaySpent, base),
     yesterdaySpent,
+    todayVariableSpent: roundMoney(todayVariableSpent, base),
+    todayAmortizedLodging: roundMoney(todayAmortizedLodging, base),
     byCategory,
     byCurrency: Array.from(curMap.values()).sort((a, b) => b.spentBase - a.spentBase),
     budgetByCurrency,

@@ -30,6 +30,7 @@ interface SpeechResultLike {
 interface VoiceInputButtonProps {
   onTranscript: (text: string) => void;
   onInterim?: (text: string) => void;
+  onListeningChange?: (listening: boolean) => void;
   className?: string;
   size?: "sm" | "md" | "lg";
   title?: string;
@@ -38,6 +39,7 @@ interface VoiceInputButtonProps {
 export function VoiceInputButton({
   onTranscript,
   onInterim,
+  onListeningChange,
   className,
   size = "md",
   title = "点击说出需求",
@@ -54,7 +56,8 @@ export function VoiceInputButton({
       recognitionRef.current = null;
     }
     setListening(false);
-  }, []);
+    onListeningChange?.(false);
+  }, [onListeningChange]);
 
   const start = useCallback(() => {
     const w = typeof window !== "undefined" ? (window as SpeechWindow) : null;
@@ -73,9 +76,9 @@ export function VoiceInputButton({
       recognition.interimResults = true;
 
       recognition.onresult = (event) => {
-        let interim = "";
         let final = "";
-        for (let i = event.resultIndex; i < event.results.length; i++) {
+        let interim = "";
+        for (let i = 0; i < event.results.length; i++) {
           const res = event.results[i] as unknown as SpeechResultLike;
           if (res.isFinal) {
             final += res[0].transcript;
@@ -83,7 +86,7 @@ export function VoiceInputButton({
             interim += res[0].transcript;
           }
         }
-        const text = final || interim;
+        const text = (final + interim).trim();
         if (text) {
           accumulatedRef.current = text;
           onInterim?.(text);
@@ -106,17 +109,20 @@ export function VoiceInputButton({
           onTranscript(text);
         }
         setListening(false);
+        onListeningChange?.(false);
       };
 
       recognitionRef.current = recognition;
       recognition.start();
       setListening(true);
+      onListeningChange?.(true);
     } catch (err) {
       console.error("[VoiceInput] start failed:", err);
       toast.error("启动麦克风失败，请重试");
       setListening(false);
+      onListeningChange?.(false);
     }
-  }, [onTranscript, onInterim, stop]);
+  }, [onTranscript, onInterim, onListeningChange, stop]);
 
   useEffect(() => {
     return () => {

@@ -6,6 +6,7 @@ import { formatMoney, formatPercent } from "@/lib/money";
 import { loadTripContext, tripToday } from "@/lib/services/trip";
 import { paceLabel } from "@/lib/services/insights";
 import { cx, dayLabel, HEALTH_META, LEG_STATUS_META, timeLabel } from "@/lib/ui/format";
+import { parseStayTag, formatStayBadge } from "@/lib/lodging";
 import { CategoryBars, ChartSkeleton } from "@/components/charts";
 
 const DailyTrend = nextDynamic(
@@ -46,27 +47,82 @@ export default async function TripDashboard({ params }: { params: Promise<{ id: 
         <div className="px-5 pt-5">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium tracking-wide text-ink-muted">
-              {over ? "已超支" : "还可以花"}
+              {over ? "预算告急" : summary.budgetByCurrency.length > 1 ? "多币种原生账本" : "还可以花"}
             </span>
             <span className={cx("rounded-full px-2.5 py-1 text-xs font-medium", meta.bg, meta.text)}>
               {meta.label} · {paceLabel(summary)}
             </span>
           </div>
-          <p className="tnum mt-1.5 text-4xl font-semibold tracking-tight">
-            {formatMoney(Math.abs(summary.remaining), summary.baseCurrency)}
-          </p>
-          <p className="mt-1.5 text-sm text-ink-muted">
-            预算 {formatMoney(summary.totalBudget, summary.baseCurrency)} · 已花{" "}
-            {formatMoney(summary.spent, summary.baseCurrency)}（{formatPercent(summary.utilization, 1)}）
-          </p>
 
-          <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-line/70">
-            <div
-              className={cx("h-full rounded-full transition-all", over ? "bg-rose-500" : meta.bar)}
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <div className="mt-2 flex justify-between text-xs text-ink-muted">
+          {summary.budgetByCurrency.length > 1 ? (
+            <div className="mt-3 space-y-3">
+              <div className="grid gap-2.5 sm:grid-cols-2">
+                {summary.budgetByCurrency.map((b) => {
+                  const bSpent = b.amount * b.consumedRatio;
+                  const bRemaining = b.amount - bSpent;
+                  const bOver = bRemaining < 0;
+                  const bRatio = Math.min(100, Math.max(0, b.consumedRatio * 100));
+                  return (
+                    <div
+                      key={`${b.currency}-${b.label}`}
+                      className="rounded-xl border border-line bg-surface p-3.5 shadow-2xs"
+                    >
+                      <div className="flex items-baseline justify-between">
+                        <span className="text-xs font-semibold text-ink-soft">
+                          {b.currency} · {b.label || (b.currency === summary.baseCurrency ? "主结算卡" : "备用金")}
+                        </span>
+                        <span className="text-[11px] text-ink-muted">
+                          {bOver ? "超支" : "还剩"}{" "}
+                          <span className="tnum font-semibold text-ink">
+                            {formatMoney(Math.abs(bRemaining), b.currency)}
+                          </span>
+                        </span>
+                      </div>
+                      <p className="tnum mt-1 text-2xl font-bold tracking-tight text-ink">
+                        {formatMoney(b.amount, b.currency)}
+                      </p>
+                      <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-line/70">
+                        <div
+                          className={cx(
+                            "h-full rounded-full transition-all",
+                            bOver ? "bg-rose-500" : bRatio > 85 ? "bg-amber-500" : "bg-brand",
+                          )}
+                          style={{ width: `${bRatio}%` }}
+                        />
+                      </div>
+                      <div className="mt-1.5 flex justify-between text-[11px] text-ink-muted">
+                        <span>已用 {formatMoney(bSpent, b.currency)}</span>
+                        <span>{formatPercent(b.consumedRatio, 0)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-center text-xs text-ink-muted">
+                各币种独立结算 · 折合大盘总盘 ≈ {formatMoney(summary.totalBudget, summary.baseCurrency)}（已花{" "}
+                {formatMoney(summary.spent, summary.baseCurrency)}）
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="tnum mt-1.5 text-4xl font-semibold tracking-tight">
+                {formatMoney(Math.abs(summary.remaining), summary.baseCurrency)}
+              </p>
+              <p className="mt-1.5 text-sm text-ink-muted">
+                预算 {formatMoney(summary.totalBudget, summary.baseCurrency)} · 已花{" "}
+                {formatMoney(summary.spent, summary.baseCurrency)}（{formatPercent(summary.utilization, 1)}）
+              </p>
+
+              <div className="mt-4 h-2.5 overflow-hidden rounded-full bg-line/70">
+                <div
+                  className={cx("h-full rounded-full transition-all", over ? "bg-rose-500" : meta.bar)}
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+            </>
+          )}
+
+          <div className="mt-2.5 flex justify-between text-xs text-ink-muted">
             <span>
               第 {summary.daysElapsed} / {summary.daysTotal} 天
             </span>
@@ -75,7 +131,15 @@ export default async function TripDashboard({ params }: { params: Promise<{ id: 
         </div>
 
         <div className="mt-5 grid grid-cols-3 divide-x divide-line border-t border-line">
-          <Stat label="今日支出" value={formatMoney(summary.todaySpent, summary.baseCurrency)} sub={`昨日 ${formatMoney(summary.yesterdaySpent, summary.baseCurrency)}`} />
+          <Stat
+            label="今日纯日常"
+            value={formatMoney(summary.todayVariableSpent, summary.baseCurrency)}
+            sub={
+              summary.todayAmortizedLodging > 0
+                ? `+平摊房费 ${formatMoney(summary.todayAmortizedLodging, summary.baseCurrency)}`
+                : `昨日 ${formatMoney(summary.yesterdaySpent, summary.baseCurrency)}`
+            }
+          />
           <Stat
             label="健康日均"
             value={formatMoney(summary.allowedDaily, summary.baseCurrency)}
@@ -84,7 +148,11 @@ export default async function TripDashboard({ params }: { params: Promise<{ id: 
           <Stat
             label="预计总支出"
             value={formatMoney(summary.projectedTotal, summary.baseCurrency)}
-            sub={summary.projectedOverrun > 0 ? `超 ${formatMoney(summary.projectedOverrun, summary.baseCurrency)}` : "在预算内"}
+            sub={
+              summary.projectedOverrun > 0
+                ? `超 ${formatMoney(summary.projectedOverrun, summary.baseCurrency)}`
+                : "在预算内"
+            }
             tone={summary.projectedOverrun > 0 ? "risk" : "good"}
           />
         </div>
@@ -265,6 +333,8 @@ export default async function TripDashboard({ params }: { params: Promise<{ id: 
           <ul className="divide-y divide-line">
             {recent.map((e) => {
               const c = catMeta.get(e.categoryKey ?? "other");
+              const stay = parseStayTag(e.tags);
+              const stayBadge = stay ? formatStayBadge(stay, e.amount, e.currency) : null;
               return (
                 <li key={e.id} className="flex items-center justify-between gap-3 py-2.5">
                   <div className="flex min-w-0 items-center gap-2.5">
@@ -276,7 +346,12 @@ export default async function TripDashboard({ params }: { params: Promise<{ id: 
                         {(e.merchant && !["打车", "消费", "买东西"].includes(e.merchant))
                           ? e.merchant
                           : (e.note || e.merchant || c?.name || "消费")}
-                        {e.source === "voice" && (
+                        {stayBadge && (
+                          <span className="ml-1.5 rounded bg-sky-100 px-1.5 py-0.5 text-[10px] font-medium text-sky-700 dark:bg-sky-950/60 dark:text-sky-300">
+                            {stayBadge.label}
+                          </span>
+                        )}
+                        {e.source === "voice" && !stayBadge && (
                           <span className="ml-1.5 rounded bg-brand-soft px-1 py-0.5 text-[11px] text-brand">
                             语音
                           </span>

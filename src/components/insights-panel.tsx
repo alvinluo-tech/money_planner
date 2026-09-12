@@ -27,6 +27,8 @@ export function InsightsPanel({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [question, setQuestion] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const [liveVoiceText, setLiveVoiceText] = useState("");
   const [items, setItems] = useState<AiInsight[]>(insights);
 
   const generate = async (withQuestion?: string) => {
@@ -43,10 +45,11 @@ export function InsightsPanel({
         return;
       }
       setItems((prev) => [data.insight!, ...prev].slice(0, 10));
+      toast.success("已生成新分析");
       setQuestion("");
       router.refresh();
     } catch {
-      toast.error("网络异常");
+      toast.error("网络异常，请重试");
     } finally {
       setLoading(false);
     }
@@ -72,10 +75,36 @@ export function InsightsPanel({
             }}
           />
           <VoiceInputButton
-            onTranscript={(text) => setQuestion((prev) => (prev ? `${prev} ${text}` : text))}
+            onInterim={(text) => {
+              setLiveVoiceText(text);
+              setQuestion(text);
+            }}
+            onTranscript={(text) => {
+              setQuestion(text);
+              setIsListening(false);
+              setLiveVoiceText("");
+            }}
+            onListeningChange={(active) => {
+              setIsListening(active);
+              if (!active) setLiveVoiceText("");
+            }}
             title="语音提问"
           />
         </div>
+
+        {isListening && (
+          <div className="mt-2.5 flex items-center gap-2 rounded-xl border border-brand/30 bg-brand-soft/50 px-3.5 py-2 text-xs text-brand animate-in fade-in">
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-brand" />
+            </span>
+            <span className="font-semibold shrink-0">正在聆听:</span>
+            <span className="truncate font-medium text-ink">
+              {liveVoiceText ? `「${liveVoiceText}」` : "请说话，如「我还能买那个包吗」..."}
+            </span>
+          </div>
+        )}
+
         <div className="mt-3 flex gap-2">
           <button type="button" onClick={() => generate()} disabled={loading} className="btn-brand flex-1">
             {loading ? "分析中…" : "生成分析"}

@@ -235,4 +235,31 @@ describe("buildBudgetSummary", () => {
     expect(s.staleRates).toEqual(["GBP"]);
     expect(s.alerts.some((a) => a.title.includes("离线"))).toBe(true);
   });
+
+  it("支持酒店按入住天数平摊到各天的 byDay 统计", () => {
+    const hotelExpense: Expense = {
+      ...expense({ amount: 910, currency: "CNY", baseAmount: 910, categoryKey: "lodging", spentOn: "2026-09-02" }),
+      tags: ["stay:2026-09-02~2026-09-04"], // 2晚
+    };
+    const coffeeExpense = expense({ amount: 50, currency: "CNY", baseAmount: 50, categoryKey: "food", spentOn: "2026-09-02" });
+
+    const s = buildBudgetSummary({
+      trip,
+      budgets,
+      expenses: [hotelExpense, coffeeExpense],
+      rates,
+      today: "2026-09-02",
+    });
+
+    // 910 平摊为每晚 455
+    const day2 = s.byDay.find((d) => d.date === "2026-09-02");
+    const day3 = s.byDay.find((d) => d.date === "2026-09-03");
+    expect(day2?.spent).toBe(505); // 455 + 50
+    expect(day3?.spent).toBe(455);
+    expect(s.spent).toBe(960); // 总额依旧精确无误
+
+    // 今日纯日常支出排除了酒店，只算咖啡
+    expect(s.todayVariableSpent).toBe(50);
+    expect(s.todayAmortizedLodging).toBe(455);
+  });
 });

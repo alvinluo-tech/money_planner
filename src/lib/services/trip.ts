@@ -112,7 +112,9 @@ export async function createExpensesFromDrafts(args: CreateExpensesArgs): Promis
     const fxSource = currency === base ? "same" : (quote?.source ?? args.defaultFxSource ?? "offline-fallback");
 
     let spentOn = draft.spentOn ?? (draft.spentAt ? draft.spentAt.slice(0, 10) : today);
-    if (spentOn > today) spentOn = today; // 不允许未来日期污染推演
+    // 允许记录行程结束日之前的未来机酒或预订，超出行程结束日的才限制
+    const maxDate = trip.endDate ? (trip.endDate > today ? trip.endDate : today) : today;
+    if (spentOn > maxDate) spentOn = maxDate;
     const spentAt = draft.spentAt ?? `${spentOn}T${new Date().toISOString().slice(11, 19)}Z`;
 
     return {

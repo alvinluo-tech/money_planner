@@ -219,4 +219,22 @@ describe("parseCaptureWithRules", () => {
     expect(c).toBeLessThanOrEqual(0.95);
     expect(Number(c.toFixed(2))).toBe(c);
   });
+
+  it("识别酒店入住日期区间并打上 stay 标签", () => {
+    const result = parseCaptureWithRules("12号到14号酒店910欧", ctx);
+    expect(result.drafts).toHaveLength(1);
+    expect(result.drafts[0].amount).toBe(910);
+    expect(result.drafts[0].currency).toBe("EUR");
+    expect(result.drafts[0].categoryKey).toBe("lodging");
+    expect(result.drafts[0].spentOn).toBe("2026-09-12");
+    expect(result.drafts[0].tags).toContain("stay:2026-09-12~2026-09-14");
+  });
+
+  it("识别行程内的机票乘坐日期", () => {
+    const result = parseCaptureWithRules("买了16号飞罗马的机票80欧", ctx);
+    expect(result.drafts).toHaveLength(1);
+    expect(result.drafts[0].amount).toBe(80);
+    expect(result.drafts[0].currency).toBe("EUR");
+    expect(result.drafts[0].spentOn).toBe("2026-09-16");
+  });
 });
