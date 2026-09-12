@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { resolveDataMode } from "@/lib/data-mode";
+import { resolveDataMode, getSupabaseEnv } from "@/lib/data-mode";
 
 const PUBLIC_PATHS = ["/login", "/auth", "/api/auth", "/api/health", "/manifest.webmanifest"];
 
@@ -8,8 +8,7 @@ const PUBLIC_PATHS = ["/login", "/auth", "/api/auth", "/api/health", "/manifest.
 export async function updateSession(request: NextRequest) {
   let response = NextResponse.next({ request });
 
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const { url, anonKey } = getSupabaseEnv();
   // 演示模式（含 APP_DATA_MODE=demo 强制指定）不做鉴权，
   // 必须与 db 层用同一套判定，否则会出现「页面能看、接口要登录」的矛盾。
   if (resolveDataMode() === "memory" || !url || !anonKey) {

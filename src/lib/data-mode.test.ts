@@ -5,6 +5,8 @@ const KEYS = [
   "APP_DATA_MODE",
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+  "SUPABASE_URL",
+  "SUPABASE_ANON_KEY",
 ] as const;
 
 const saved = Object.fromEntries(KEYS.map((k) => [k, process.env[k]]));
@@ -26,9 +28,15 @@ describe("resolveDataMode", () => {
     expect(supabaseConfigured()).toBe(false);
   });
 
-  it("配了 Supabase 走真实模式", () => {
+  it("配了 Supabase 走真实模式（支持 NEXT_PUBLIC_ 前缀）", () => {
     setEnv({ APP_DATA_MODE: undefined, NEXT_PUBLIC_SUPABASE_URL: "https://x.supabase.co", NEXT_PUBLIC_SUPABASE_ANON_KEY: "k" });
     expect(resolveDataMode()).toBe("supabase");
+  });
+
+  it("配了 Supabase 走真实模式（支持无前缀私有变量 SUPABASE_URL）", () => {
+    setEnv({ APP_DATA_MODE: undefined, SUPABASE_URL: "https://x.supabase.co", SUPABASE_ANON_KEY: "k" });
+    expect(resolveDataMode()).toBe("supabase");
+    expect(supabaseConfigured()).toBe(true);
   });
 
   it("APP_DATA_MODE=demo 优先于已配置的 Supabase（中间件与 db 层必须一致）", () => {

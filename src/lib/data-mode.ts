@@ -4,17 +4,24 @@
  */
 export type DataMode = "supabase" | "memory";
 
+export function getSupabaseEnv() {
+  const url = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  return {
+    url: url?.trim() || undefined,
+    anonKey: anonKey?.trim() || undefined,
+  };
+}
+
 export function resolveDataMode(): DataMode {
   const forced = process.env.APP_DATA_MODE?.trim();
   if (forced === "demo" || forced === "memory") return "memory";
   if (forced === "supabase") return "supabase";
-  return process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    ? "supabase"
-    : "memory";
+  const { url, anonKey } = getSupabaseEnv();
+  return url && anonKey ? "supabase" : "memory";
 }
 
 export function supabaseConfigured(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-  );
+  const { url, anonKey } = getSupabaseEnv();
+  return Boolean(url && anonKey);
 }

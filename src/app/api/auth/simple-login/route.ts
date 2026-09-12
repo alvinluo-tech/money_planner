@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { getSupabaseEnv } from "@/lib/data-mode";
 
 const FIXED_EMAIL = "admin@moneyplanner.local";
 
@@ -18,8 +19,7 @@ export async function POST(request: Request) {
     }
 
     // 密码正确，使用固定账号在 Supabase 登录或在本地模式放行
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const { url, anonKey } = getSupabaseEnv();
 
     const cookieStore = await cookies();
 
