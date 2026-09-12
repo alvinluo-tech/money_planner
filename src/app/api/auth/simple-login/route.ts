@@ -71,6 +71,15 @@ export async function POST(request: Request) {
         password: internalSupabasePassword,
       });
       if (signUpError) {
+        if (signUpError.message.toLowerCase().includes("email logins are disabled") || signUpError.message.toLowerCase().includes("signup is disabled")) {
+          return NextResponse.json(
+            {
+              ok: false,
+              error: "Supabase 的 Email 登录总开关被关闭了。请在 Supabase 后台 Authentication -> Providers -> Email 中重新打开顶部的「Enable Email provider」，然后仅关闭下方的「Confirm email」复选框。",
+            },
+            { status: 400 },
+          );
+        }
         return NextResponse.json({ ok: false, error: "自动注册失败：" + signUpError.message }, { status: 500 });
       }
 
@@ -85,7 +94,7 @@ export async function POST(request: Request) {
             return NextResponse.json(
               {
                 ok: false,
-                error: "Supabase 项目开启了邮箱验证，请在 Supabase 后台 Authentication -> Providers -> Email 中关闭「Confirm email」。",
+                error: "请前往 Supabase -> Authentication -> Providers -> Email，取消勾选下方的「Confirm email」并点击 Save（注意：不要关闭最上方的 Enable Email provider）。",
               },
               { status: 400 },
             );
@@ -94,11 +103,21 @@ export async function POST(request: Request) {
         }
       }
     } else if (signInError) {
-      if (signInError.message.toLowerCase().includes("email not confirmed")) {
+      const msg = signInError.message.toLowerCase();
+      if (msg.includes("email logins are disabled")) {
         return NextResponse.json(
           {
             ok: false,
-            error: "Supabase 提示邮箱未验证，请在 Supabase 后台 Authentication -> Providers -> Email 中关闭「Confirm email」。",
+            error: "Supabase 的 Email 登录总开关被关闭了。请前往 Supabase -> Authentication -> Providers -> Email，重新把最上方的「Enable Email provider」开关打开（保持紫色），然后仅取消勾选下方的「Confirm email」并保存。",
+          },
+          { status: 400 },
+        );
+      }
+      if (msg.includes("email not confirmed")) {
+        return NextResponse.json(
+          {
+            ok: false,
+            error: "Supabase 提示邮箱未验证。请前往 Supabase -> Authentication -> Providers -> Email，取消勾选下方的「Confirm email」并保存。",
           },
           { status: 400 },
         );
