@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Mic, MicOff, Loader2 } from "lucide-react";
+import { Mic, MicOff } from "lucide-react";
 import { toast } from "sonner";
 import { cx } from "@/lib/ui/format";
 
@@ -17,6 +17,16 @@ type SpeechCtor = new () => {
   abort: () => void;
 };
 
+type SpeechWindow = Window & {
+  SpeechRecognition?: SpeechCtor;
+  webkitSpeechRecognition?: SpeechCtor;
+};
+
+interface SpeechResultLike {
+  0: { transcript: string };
+  isFinal?: boolean;
+}
+
 interface VoiceInputButtonProps {
   onTranscript: (text: string) => void;
   onInterim?: (text: string) => void;
@@ -30,10 +40,10 @@ export function VoiceInputButton({
   onInterim,
   className,
   size = "md",
-  title = "按住或点击说出需求",
+  title = "点击说出需求",
 }: VoiceInputButtonProps) {
   const [listening, setListening] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const recognitionRef = useRef<InstanceType<SpeechCtor> | null>(null);
   const accumulatedRef = useRef("");
 
   const stop = useCallback(() => {
@@ -47,7 +57,7 @@ export function VoiceInputButton({
   }, []);
 
   const start = useCallback(() => {
-    const w = typeof window !== "undefined" ? (window as any) : null;
+    const w = typeof window !== "undefined" ? (window as SpeechWindow) : null;
     const Ctor: SpeechCtor | undefined = w?.SpeechRecognition || w?.webkitSpeechRecognition;
 
     if (!Ctor) {
@@ -66,8 +76,8 @@ export function VoiceInputButton({
         let interim = "";
         let final = "";
         for (let i = event.resultIndex; i < event.results.length; i++) {
-          const res = event.results[i];
-          if ((res as any).isFinal) {
+          const res = event.results[i] as unknown as SpeechResultLike;
+          if (res.isFinal) {
             final += res[0].transcript;
           } else {
             interim += res[0].transcript;

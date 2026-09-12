@@ -18,10 +18,10 @@ export async function POST(request: Request) {
 
     const plan = await generateAiTripPlan(parsed.data.prompt, parsed.data.today);
     return NextResponse.json({ ok: true, plan });
-  } catch (err: any) {
+  } catch (err) {
     console.error("[api/trips/ai-plan]", err);
     return NextResponse.json(
-      { ok: false, error: err.message || "行程规划生成失败，请重试" },
+      { ok: false, error: err instanceof Error ? err.message : "行程规划生成失败，请重试" },
       { status: 500 },
     );
   }

@@ -19,8 +19,9 @@ const SYSTEM_PROMPT = `你是专业的「旅行预算与行程规划」AI 助手
      * 若用户人在海外或用英镑银行卡（哪怕去欧洲/日本旅游），只要提了英镑，基准币就是 GBP，方便用户与自己的银行账户对账；
      * 未提及任何特定货币时，默认 CNY。
    - budgets: 多币种预算数组。
-     * 若用户指定了特定结算币种（如英镑 1500 镑），第一项主预算必须是该币种（GBP 1500，设为主预算）；
-     * 若目的地使用当地货币（如法国意大利使用 EUR），可贴心地自动按大致汇率增加一项当地参考预算（例如 EUR 1750），方便在当地花现金时参照；
+     * 若用户同时提到了多种货币（例如「预算10000rmb，1500英镑」或「1500镑加5000元」），必须将每种货币与金额都作为独立的预算项放入 budgets 数组（例如 [{ currency: "GBP", amount: 1500, label: "英镑预算" }, { currency: "CNY", amount: 10000, label: "人民币备用" }]）！
+     * 多个币种时，第一项必须设为用户的基准币（baseCurrency）。
+     * 若用户只指定了一种货币，但目的地使用另一种货币（如法意用 EUR，用户只说了 GBP 1500），可贴心地自动按大致汇率增加一项当地参考预算（例如 EUR 1750）；若用户已经明确指定了多种货币（如同时说了人民币和英镑），则完全以用户指定的货币预算为准！
      * 预算金额必须是正数。
    - legs: 城市分段列表。重要原则：若用户未主动说明前几天在哪个城市、后几天在哪个城市，绝对不要擅自强行编造日程分段，legs 直接给空数组 []！只有在用户明确说了城市节奏安排时才输出分段。
    - suggestion: 简短贴心的预算建议（40字内）。
@@ -31,7 +32,7 @@ const SYSTEM_PROMPT = `你是专业的「旅行预算与行程规划」AI 助手
 3. 极简实用：核心是帮用户管好总账和币种，不要增加虚假的城市日程负担。
 `;
 
-function fallbackTripPlan(prompt: string, today: string): AiTripPlan {
+export function fallbackTripPlan(prompt: string, today: string): AiTripPlan {
   const isJapan = /日本|东京|京都|大阪|北海道|冲绳/.test(prompt);
   const isUK = /英国|伦敦|爱丁堡|曼彻斯特/.test(prompt);
   const isEuro = /法国|意大利|欧洲|巴黎|罗马|米兰|德国|西班牙/.test(prompt);
@@ -39,7 +40,30 @@ function fallbackTripPlan(prompt: string, today: string): AiTripPlan {
   const hasGbp = /英镑|镑|gbp/i.test(prompt);
   const hasEur = /欧元|欧|eur/i.test(prompt);
   const hasUsd = /美元|刀|usd/i.test(prompt);
+  const hasCny = /人民币|元|块|cny|rmb/i.test(prompt);
   const baseCurrency = hasGbp ? "GBP" : hasEur ? "EUR" : hasUsd ? "USD" : "CNY";
+
+  // 提取用户可能提到的多币种金额组合（如 "10000rmb 1500英镑"、"1500镑、1万人民币"）
+  const parsedBudgets: Array<{ currency: string; amount: number; label: string }> = [];
+  const currencyPatterns: Array<{ regex: RegExp; currency: string; label: string }> = [
+    { regex: /(\d+(?:\.\d+)?)\s*(?:万|k|千)?\s*(?:英镑|镑|gbp)/i, currency: "GBP", label: "英镑预算" },
+    { regex: /(\d+(?:\.\d+)?)\s*(?:万|k|千)?\s*(?:rmb|cny|人民币|元|块)/i, currency: "CNY", label: "人民币备用" },
+    { regex: /(\d+(?:\.\d+)?)\s*(?:万|k|千)?\s*(?:欧元|欧|eur)/i, currency: "EUR", label: "欧元预算" },
+    { regex: /(\d+(?:\.\d+)?)\s*(?:万|k|千)?\s*(?:美元|刀|usd)/i, currency: "USD", label: "美元预算" },
+    { regex: /(\d+(?:\.\d+)?)\s*(?:万|k|千)?\s*(?:日元|円|jpy)/i, currency: "JPY", label: "日元预算" },
+  ];
+
+  for (const p of currencyPatterns) {
+    const match = prompt.match(p.regex);
+    if (match) {
+      let raw = parseFloat(match[1]);
+      if (match[0].includes("万")) raw *= 10000;
+      else if (/k|千/i.test(match[0])) raw *= 1000;
+      if (raw > 0) {
+        parsedBudgets.push({ currency: p.currency, amount: raw, label: p.label });
+      }
+    }
+  }
 
   // 提取用户可能提到的金额
   const amountMatch = prompt.match(/(\d+(?:\.\d+)?)\s*(?:万|k|千|镑|英镑|欧|欧元|元|块)?/i);
@@ -61,6 +85,24 @@ function fallbackTripPlan(prompt: string, today: string): AiTripPlan {
   const endDate = d.toISOString().slice(0, 10);
 
   const cleanName = prompt.replace(/^(我打算|我想去|计划去|准备去)/, "").trim() || "新旅行计划";
+
+  // 若成功解析到了明确的币种金额，直接使用用户指定的币种组合
+  if (parsedBudgets.length > 0) {
+    const sortedBudgets = [...parsedBudgets].sort((a, b) =>
+      a.currency === baseCurrency ? -1 : b.currency === baseCurrency ? 1 : 0
+    );
+    return {
+      name: cleanName,
+      destination: isEuro ? "法国 · 意大利" : isJapan ? "日本" : isUK ? "英国" : "旅行目的地",
+      coverEmoji: isEuro ? "🇪🇺" : isJapan ? "🇯🇵" : isUK ? "🇬🇧" : "✈️",
+      startDate,
+      endDate,
+      baseCurrency,
+      budgets: sortedBudgets,
+      legs: [],
+      suggestion: `已配置 ${sortedBudgets.map((b) => `${b.currency} ${b.amount}`).join(" + ")} 多币种预算组合。`,
+    };
+  }
 
   if (isEuro) {
     const budgetList = baseCurrency === "GBP"

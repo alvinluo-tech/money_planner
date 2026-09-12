@@ -19,17 +19,21 @@ export async function GET() {
       throw new Error(`请求大模型服务器失败: ${res.statusText}`);
     }
 
-    const data = await res.json();
-    let models = data.data?.map((m: any) => m.id) || [];
-    
-    if (!data.data && Array.isArray(data)) {
-      models = data.map((m: any) => m.id || m);
+    const data = (await res.json()) as { data?: Array<{ id?: string }> } | Array<string | { id?: string }>;
+    let models: string[] = [];
+    if (Array.isArray(data)) {
+      models = data.map((m) => (typeof m === "string" ? m : (m.id ?? "")));
+    } else if (Array.isArray(data.data)) {
+      models = data.data.map((m) => m.id ?? "");
     }
-    
-    models = models.sort();
+
+    models = models.filter(Boolean).sort();
 
     return NextResponse.json({ ok: true, models });
-  } catch (err: any) {
-    return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
+  } catch (err) {
+    return NextResponse.json(
+      { ok: false, error: err instanceof Error ? err.message : "获取模型列表失败" },
+      { status: 500 },
+    );
   }
 }

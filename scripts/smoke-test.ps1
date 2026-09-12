@@ -109,9 +109,32 @@ Log "legs PUT 重叠被拒 422" ($legsBad.code -eq 422) "status=$($legsBad.code)
 $ins = Req "POST" "/api/insights" @{ tripId = $trip }
 Log "insights 规则引擎" ($ins.code -eq 200 -and $ins.json.insight.headline.Length -gt 0) "headline=$($ins.json.insight.headline)"
 
-# ---------- 8. 助手无 AI key → 501 ----------
+# ---------- 7b. 新端点：密码登录 / AI 规划 / 模型列表 ----------
+$envFile = Join-Path $PSScriptRoot "..\.env"
+$pw = $null
+if (Test-Path $envFile) {
+    $m = [regex]::Match([IO.File]::ReadAllText($envFile, [Text.Encoding]::UTF8), '(?m)^APP_PASSWORD=(.*)$')
+    if ($m.Success) { $pw = $m.Groups[1].Value.Trim() }
+}
+$bad = Req "POST" "/api/auth/simple-login" @{ password = "definitely-wrong-$(Get-Random)" }
+$good = if ($pw) { Req "POST" "/api/auth/simple-login" @{ password = $pw } } else { $null }
+if ($pw) {
+    Log "simple-login 错误密码 401 / 正确密码 200" ($bad.code -eq 401 -and $good.code -eq 200) "bad=$($bad.code) good=$($good.code) $($good.body)"
+} else {
+    # 未设 APP_PASSWORD：至少验证错误密码被拒
+    Log "simple-login 错误密码被拒" ($bad.code -eq 401) "status=$($bad.code)（.env 未配 APP_PASSWORD，跳过正确密码验证）"
+}
+
+$plan = Req "POST" "/api/trips/ai-plan" @{ prompt = "国庆去日本东京和京都7天，预算1万5人民币"; today = $today }
+$pok = $plan.code -eq 200 -and $plan.json.ok -eq $true -and $null -ne $plan.json.plan.name -and $plan.json.plan.budgets.Count -ge 1
+Log "ai-plan 生成行程" $pok "code=$($plan.code) name=$($plan.json.plan.name) budgets=$($plan.json.plan.budgets.Count) legs=$($plan.json.plan.legs.Count)"
+
+$models = Req "GET" "/api/models" $null
+Log "models 列表" ($models.code -eq 200 -and $models.json.models.Count -ge 1) "code=$($models.code) count=$($models.json.models.Count)"
+
+# ---------- 8. 助手未配 AI → 501（配了 AI 时应为 200/SSE） ----------
 $ast = Req "POST" "/api/assistant" @{ tripId = $trip; message = "还剩多少钱" }
-Log "assistant 未配 AI 返回 501" ($ast.code -eq 501) "status=$($ast.code)"
+Log "assistant 状态" ($ast.code -eq 501 -or $ast.code -eq 200) "status=$($ast.code)（未配 AI=501 / 已配=200）"
 
 # ---------- 9. fx 与跨域拦截 ----------
 $fx = Req "GET" "/api/fx?base=CNY&currencies=GBP" $null

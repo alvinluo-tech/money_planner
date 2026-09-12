@@ -50,8 +50,8 @@ export default function LoginPage() {
       const target = nextPath && /^\/[^/\\]/.test(nextPath) ? nextPath : "/";
       router.replace(target);
       router.refresh();
-    } catch (err: any) {
-      setError(err.message);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "登录失败");
     } finally {
       setLoading(false);
     }
